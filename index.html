@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BIM Studio — IFC Viewer</title>
+</head>
+
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">◈</div>
+        <div><strong>BIM STUDIO</strong><small>SMART BUILDING • MODEL WORKSPACE</small></div>
+      </div>
+      <div class="top-right"><span id="status-dot" class="dot"></span><span id="status">Initializing viewer…</span>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-head"><span class="eyebrow">WORKSPACE</span>
+          <h2>3D Model Library</h2>
+          <p>Five IFC models · local workspace</p>
+        </div>
+        <div class="nav-title">MODEL NAVIGATION <span>05</span></div>
+        <div id="model-list" class="model-list"></div>
+        <div class="sidebar-footer"><span class="eyebrow">QUICK ACTIONS</span><button id="fit-btn" class="outline-btn">⌗
+            &nbsp; Fit camera to model</button><button id="preload-btn" class="outline-btn">↻ &nbsp; Preload other
+            models</button></div>
+      </aside>
+      <section class="center">
+        <div class="view-toolbar">
+          <div><span class="eyebrow">ACTIVE VIEW</span>
+            <h1 id="active-title">Building Overview</h1>
+          </div>
+          <div class="view-actions"><span id="active-state" class="state-pill">Waiting</span><button id="reload-btn"
+              class="toolbar-btn" title="Re-render">↻</button></div>
+        </div>
+        <div class="viewer-shell">
+          <div id="viewer"></div>
+          <div class="viewer-badge">◉ &nbsp; INTERACTIVE BIM VIEWER</div>
+          <div class="viewer-hint">Left drag: orbit &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Right drag: pan</div>
+          <div id="viewer-overlay" class="viewer-overlay">Initializing 3D engine…</div>
+        </div>
+        <div class="bottom-strip"><span>◈ &nbsp; Local Fragments engine</span><span id="cache-info">0 / 5 models
+            cached</span><span id="switch-time">Switch: —</span></div>
+      </section>
+      <aside class="right-panel">
+        <div class="tabbar"><button id="tab-properties" class="tab active">ELEMENT INFO</button><button
+            id="tab-converter" class="tab">IFC CONVERTER</button></div>
+        <div id="properties-pane" class="panel-body">
+          <div class="panel-heading">
+            <h3>Element inspector</h3>
+            <p>Click a BIM element to inspect its metadata.</p>
+          </div>
+          <div id="element-details" class="element-details">
+            <div class="empty-inspector">
+              <div class="inspector-icon">⌗</div>
+              <strong>No element selected</strong>
+              <p>Click a wall, door, window, or another BIM element.</p>
+            </div>
+          </div>
+        </div>
+        <div id="converter-pane" class="panel-body hidden">
+          <div class="panel-heading">
+            <h3>IFC → Fragments</h3>
+            <p>Convert each IFC once, then serve the optimized .frag files for fast switching.</p>
+          </div>
+          <div class="converter-list" id="converter-list"></div>
+          <div class="converter-help">Conversion runs in your browser. After downloading a .frag file, move it into
+            <code>public/fragments/</code> and refresh the page. Your IFC originals remain unchanged.
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
