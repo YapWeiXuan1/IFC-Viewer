@@ -2,6 +2,8 @@ import './style.css';
 import { createIfcViewer } from './viewer.js';
 import { ElementInspector } from "./element-inspector.js";
 import { setupModelPicker } from "./model-picker.js";
+import { createCameraViews } from './camera-views.js';
+const BASE_URL = import.meta.env.BASE_URL;
 
 const models = [
   { key: 'building', name: 'Building Overview', file: 'building.ifc', frag: 'building.frag', glyph: '▦' },
@@ -16,14 +18,29 @@ const pending = new Map();
 const conversions = new Map();
 let viewer;
 let activeKey = null;
+let cameraViews;
 let switchGeneration = 0;
 let conversionBusy = false;
 let inspector;
 let picker;
 
 function status(message, state = 'ok') {
-  byId('status').textContent = message;
-  byId('status-dot').className = `dot ${state}`;
+  const statusElement = byId('status');
+  const statusDot = byId('status-dot');
+
+  if (statusElement) {
+    statusElement.textContent = message;
+  }
+
+  if (statusDot) {
+    statusDot.className = `dot ${state}`;
+  }
+
+  if (state === 'error') {
+    console.error('[BIM Studio]', message);
+  } else {
+    console.log('[BIM Studio]', message);
+  }
 }
 function overlay(message) {
   byId('viewer-overlay').textContent = message || '';
@@ -54,7 +71,9 @@ async function ensureLoaded(m) {
   if (cache.has(m.key)) return cache.get(m.key);
   if (pending.has(m.key)) return pending.get(m.key);
   const task = (async () => {
-    const bytes = await bytesFrom(`/fragments/${m.frag}`);
+    const bytes = await bytesFrom(
+      `${BASE_URL}fragments/${m.frag}`
+    );
     const model = await viewer.fragments.core.load(bytes, { modelId: m.key });
     cache.set(m.key, model);
     model.object.visible = m.key === activeKey;
@@ -87,6 +106,17 @@ async function switchModel(key) {
     for (const [k, item] of cache) {
       item.object.visible = k === key;
     }
+    if (cameraViews) {
+      await cameraViews.setView('iso');
+    }
+    document.querySelectorAll(
+      '.camera-view-btn'
+    ).forEach(button => {
+      button.classList.toggle(
+        'active',
+        button.dataset.view === 'iso'
+      );
+    });
     await viewer.fragments.core.update(true);
     if (generation !== switchGeneration) return;
     byId('active-state').textContent = 'Ready';
@@ -118,7 +148,9 @@ async function convertModel(m) {
   label.textContent = 'Reading IFC and converting…';
   status(`Converting ${m.name}…`);
   try {
-    const bytes = await bytesFrom(`/models/${m.file}`);
+    const bytes = await bytesFrom(
+      `${BASE_URL}models/${m.file}`
+    );
     // Use a separate ID to avoid collision with the cached production model.
     const conversionId = `conversion-${m.key}`;
     const converted = await viewer.ifcLoader.load(bytes, false, conversionId);
@@ -165,12 +197,42 @@ async function start() {
   byId('tab-converter').onclick = () => setActiveTab('converter');
   byId('preload-btn').onclick = () => void preloadOthers();
   byId('reload-btn').onclick = () => void viewer?.fragments.core.update(true);
-  byId('fit-btn').onclick = () => {
-    // Camera fitting needs version-specific Fragments bounds API.
-    status('Camera fitting not wired yet; use mouse controls.', 'error');
-  };
   try {
     viewer = await createIfcViewer(byId('viewer'));
+
+    cameraViews = createCameraViews(
+      viewer,
+      () => cache.get(activeKey)
+    );
+
+    document.querySelectorAll(
+      ".camera-view-btn"
+    ).forEach(button => {
+
+      button.addEventListener("click", async () => {
+        const direction = button.dataset.view;
+
+        try {
+          await cameraViews.setView(direction);
+
+          document.querySelectorAll(
+            ".camera-view-btn"
+          ).forEach(item => {
+            item.classList.remove("active");
+          });
+
+          button.classList.add("active");
+
+        } catch (error) {
+          console.error(
+            "Failed to change camera view:",
+            error
+          );
+        }
+      });
+
+    });
+
     inspector = new ElementInspector({
 
       onSelected: (element) => {
@@ -221,7 +283,19 @@ async function start() {
       inspector
     });
     status('3D engine initialized');
-    await switchModel('building');
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
+    const requestedKey = params.get('model');
+
+    const initialKey = models.some(
+      model => model.key === requestedKey
+    )
+      ? requestedKey
+      : 'building';
+
+    await switchModel(initialKey);
     // Load other models in the background; first-view responsiveness comes first.
     void preloadOthers();
   } catch (e) {

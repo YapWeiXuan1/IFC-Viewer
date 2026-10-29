@@ -28,16 +28,6 @@ button:disabled {
   cursor: not-allowed
 }
 
-.topbar {
-  height: 70px;
-  border-bottom: 1px solid #23344b;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  background: #0d1929
-}
-
 .brand {
   display: flex;
   align-items: center;
@@ -93,8 +83,8 @@ button:disabled {
 .workspace {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr) 305px;
-  height: calc(100% - 70px);
-  min-height: 0
+  height: 100%;
+  min-height: 0;
 }
 
 .sidebar,
@@ -524,33 +514,155 @@ button:disabled {
     max-width: 90%
   }
 
+}
 
-  .element-details {
-    margin-top: 16px;
-    min-width: 0;
+
+/* =========================================
+   SELECTED BIM ELEMENT - OVERFLOW FIX
+   ========================================= */
+
+/* Prevent the right panel from expanding */
+.right-panel {
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Keep panel content within the sidebar */
+.panel-body {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Selected element container */
+.element-details {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 16px;
+}
+
+/* Element title */
+.element-details h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* Model name and local ID */
+.element-details p {
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* Raw IFC property JSON */
+.element-details pre {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: 55vh;
+
+  margin: 12px 0;
+  padding: 12px;
+
+  background: #101c2c;
+  color: #d9e8f6;
+
+  border: 1px solid #2a4059;
+  border-radius: 10px;
+
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+
+  /* Important: wrap long JSON values */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+
+  /* Vertical scrolling only */
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+
+/* =====================================
+   CAMERA VIEW CONTROLS
+   ===================================== */
+
+.camera-view-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+
+  max-width: calc(100% - 32px);
+  padding: 6px;
+
+  background: rgba(12, 27, 45, 0.94);
+  border: 1px solid #2a4059;
+  border-radius: 10px;
+
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px);
+}
+
+.camera-view-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+
+  padding: 8px 11px;
+  background: transparent;
+  color: #a9bfd6;
+
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+
+  cursor: pointer;
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.camera-view-btn:hover {
+  background: #203b58;
+  color: #ffffff;
+}
+
+.camera-view-btn.active {
+  background: #1e73be;
+  border-color: #3b9ef2;
+  color: #ffffff;
+}
+
+/* Small screens */
+
+@media (max-width: 760px) {
+  .camera-view-controls {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    justify-content: center;
   }
 
-  .element-details h3 {
-    margin: 0 0 12px;
-    font-size: 15px;
+  .camera-view-btn {
+    flex: 1 1 auto;
+    padding: 7px 9px;
   }
-
-  .element-details p {
-    font-size: 13px;
-    line-height: 1.6;
-  }
-
-  .element-details pre {
-    max-height: 55vh;
-    overflow: auto;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    padding: 14px;
-    border-radius: 10px;
-    background: #101c2c;
-    color: #d9e8f6;
-    font-size: 12px;
-    line-height: 1.6;
-  }
-
 }

@@ -9,14 +9,6 @@
 
 <body>
   <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">◈</div>
-        <div><strong>BIM STUDIO</strong><small>SMART BUILDING • MODEL WORKSPACE</small></div>
-      </div>
-      <div class="top-right"><span id="status-dot" class="dot"></span><span id="status">Initializing viewer…</span>
-      </div>
-    </header>
     <div class="workspace">
       <aside class="sidebar">
         <div class="sidebar-head"><span class="eyebrow">WORKSPACE</span>
@@ -25,9 +17,9 @@
         </div>
         <div class="nav-title">MODEL NAVIGATION <span>05</span></div>
         <div id="model-list" class="model-list"></div>
-        <div class="sidebar-footer"><span class="eyebrow">QUICK ACTIONS</span><button id="fit-btn" class="outline-btn">⌗
-            &nbsp; Fit camera to model</button><button id="preload-btn" class="outline-btn">↻ &nbsp; Preload other
-            models</button></div>
+        <div class="sidebar-footer"><span class="eyebrow">QUICK ACTIONS</span>
+          <button id="preload-btn" class="outline-btn">↻ &nbsp; Preload other models</button>
+        </div>
       </aside>
       <section class="center">
         <div class="view-toolbar">
@@ -39,6 +31,37 @@
         </div>
         <div class="viewer-shell">
           <div id="viewer"></div>
+
+          <div class="camera-view-controls">
+            <button class="camera-view-btn" data-view="top">
+              Top
+            </button>
+
+            <button class="camera-view-btn" data-view="bottom">
+              Bottom
+            </button>
+
+            <button class="camera-view-btn" data-view="left">
+              Left
+            </button>
+
+            <button class="camera-view-btn" data-view="right">
+              Right
+            </button>
+
+            <button class="camera-view-btn" data-view="front">
+              Front
+            </button>
+
+            <button class="camera-view-btn" data-view="back">
+              Back
+            </button>
+
+            <button class="camera-view-btn" data-view="iso">
+              3D
+            </button>
+          </div>
+
           <div class="viewer-badge">◉ &nbsp; INTERACTIVE BIM VIEWER</div>
           <div class="viewer-hint">Left drag: orbit &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Right drag: pan</div>
           <div id="viewer-overlay" class="viewer-overlay">Initializing 3D engine…</div>
@@ -46,33 +69,63 @@
         <div class="bottom-strip"><span>◈ &nbsp; Local Fragments engine</span><span id="cache-info">0 / 5 models
             cached</span><span id="switch-time">Switch: —</span></div>
       </section>
+
       <aside class="right-panel">
-        <div class="tabbar"><button id="tab-properties" class="tab active">ELEMENT INFO</button><button
-            id="tab-converter" class="tab">IFC CONVERTER</button></div>
+
+        <!-- Tabs -->
+        <div class="tabbar">
+          <button id="tab-properties" class="tab active">
+            ELEMENT INFO
+          </button>
+
+          <button id="tab-converter" class="tab">
+            IFC CONVERTER
+          </button>
+        </div>
+
+        <!-- Element Info Panel -->
         <div id="properties-pane" class="panel-body">
+
           <div class="panel-heading">
             <h3>Element inspector</h3>
             <p>Click a BIM element to inspect its metadata.</p>
           </div>
+
           <div id="element-details" class="element-details">
             <div class="empty-inspector">
               <div class="inspector-icon">⌗</div>
               <strong>No element selected</strong>
-              <p>Click a wall, door, window, or another BIM element.</p>
+              <p>Click an element in the 3D model to inspect it.</p>
             </div>
           </div>
+
         </div>
+
+        <!-- IFC Converter Panel -->
         <div id="converter-pane" class="panel-body hidden">
+
           <div class="panel-heading">
             <h3>IFC → Fragments</h3>
-            <p>Convert each IFC once, then serve the optimized .frag files for fast switching.</p>
+            <p>
+              Convert each IFC once, then serve the optimized
+              .frag files for fast switching.
+            </p>
           </div>
+
           <div class="converter-list" id="converter-list"></div>
-          <div class="converter-help">Conversion runs in your browser. After downloading a .frag file, move it into
-            <code>public/fragments/</code> and refresh the page. Your IFC originals remain unchanged.
+
+          <div class="converter-help">
+            Conversion runs in your browser.
+            After downloading a .frag file, move it into
+            <code>public/fragments/</code>
+            and refresh the page.
+            Your IFC originals remain unchanged.
           </div>
+
         </div>
+
       </aside>
+
     </div>
   </div>
   <script type="module" src="/src/main.js"></script>
