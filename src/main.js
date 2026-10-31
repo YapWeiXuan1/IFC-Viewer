@@ -6,6 +6,9 @@ import { setupModelPicker } from "./model-picker.js";
 import { buildIfcElementIndex, downloadIfcElementIndex } from './ifc-indexer.js';
 import { setupMappingWorkspace } from './mapping-workspace.js';
 import { getAssetById, getMappingStatus } from './services/fobeApi.js';
+import { createCameraViews } from './camera-views.js';
+
+const BASE_URL = import.meta.env.BASE_URL;
 
 const models = [
   { key: 'building', name: 'Building Overview', file: 'building.ifc', frag: 'building.frag', glyph: '▦' },
@@ -22,6 +25,7 @@ const fragmentFallbackModels = new Set();
 const dashboardIndexes = new Map();
 let viewer;
 let activeKey = null;
+let cameraViews;
 let switchGeneration = 0;
 let conversionBusy = false;
 let inspector;
@@ -98,14 +102,14 @@ async function ensureLoaded(m) {
   const task = (async () => {
     let model;
     try {
-      const bytes = await bytesFrom(`/fragments/${m.frag}`);
+      const bytes = await bytesFrom(`${BASE_URL}fragments/${m.frag}`);
       model = await viewer.fragments.core.load(bytes, { modelId: m.key });
     } catch (fragmentError) {
       // A bad or version-incompatible pre-generated fragment must not make a
       // source IFC unavailable. The loaded source model remains read-only and
       // can later be exported through the existing converter flow.
       console.warn(`Fragment load failed for ${m.key}; loading source IFC instead.`, fragmentError);
-      const sourceBytes = await bytesFrom(`/models/${m.file}`);
+      const sourceBytes = await bytesFrom(`${BASE_URL}models/${m.file}`);
       model = await viewer.ifcLoader.load(sourceBytes, false, m.key);
       fragmentFallbackModels.add(m.key);
     }
@@ -194,7 +198,7 @@ async function convertModel(m) {
   label.textContent = 'Reading IFC and converting…';
   status(`Converting ${m.name}…`);
   try {
-    const bytes = await bytesFrom(`/models/${m.file}`);
+    const bytes = await bytesFrom(`${BASE_URL}models/${m.file}`);
     // Use a separate ID to avoid collision with the cached production model.
     const conversionId = `conversion-${m.key}`;
     const converted = await viewer.ifcLoader.load(bytes, false, conversionId);
@@ -251,6 +255,20 @@ async function start() {
   byId('fit-btn').onclick = () => void frameModel(cache.get(activeKey));
   try {
     viewer = await createIfcViewer(byId('viewer'));
+    cameraViews = createCameraViews(viewer, () => cache.get(activeKey));
+    document.querySelectorAll('.camera-view-btn').forEach(button => {
+      button.addEventListener('click', async () => {
+        try {
+          await cameraViews.setView(button.dataset.view);
+          document.querySelectorAll('.camera-view-btn').forEach(item => {
+            item.classList.toggle('active', item === button);
+          });
+        } catch (error) {
+          console.error('Failed to change camera view:', error);
+          status('Unable to change camera view.', 'error');
+        }
+      });
+    });
     inspector = new ElementInspector({
 
       onSelected: (element) => {
@@ -360,7 +378,8 @@ async function start() {
       modelCatalog: models
     });
     status('3D engine initialized');
-    await switchModel('building');
+    const requestedModel = new URLSearchParams(window.location.search).get('model');
+    await switchModel(models.some(model => model.key === requestedModel) ? requestedModel : 'building');
     // Load other models in the background; first-view responsiveness comes first.
     void preloadOthers();
   } catch (e) {

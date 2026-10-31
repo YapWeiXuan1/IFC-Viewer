@@ -291,6 +291,41 @@ button:disabled {
   display: block
 }
 
+.camera-view-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: calc(100% - 28px);
+  padding: 6px;
+  background: #0b1b2ddc;
+  border: 1px solid #274560;
+  border-radius: 8px;
+}
+
+.camera-view-btn {
+  min-width: 34px;
+  padding: 6px 8px;
+  color: #b9d2ec;
+  font-size: 10px;
+  background: #10253c;
+  border: 1px solid #294b6b;
+  border-radius: 5px;
+}
+
+.camera-view-btn:hover,
+.camera-view-btn:focus-visible { background: #203b58; color: #fff; }
+.camera-view-btn.active { background: #1e73be; border-color: #3b9ef2; color: #fff; }
+
+@media (max-width: 760px) {
+  .camera-view-controls { top: 12px; right: 12px; left: 12px; justify-content: center; }
+  .camera-view-btn { flex: 1 1 auto; }
+}
+
 .viewer-badge,
 .viewer-hint {
   position: absolute;

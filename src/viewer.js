@@ -25,8 +25,9 @@ export async function createIfcViewer(container) {
   // Fragments uses a worker to manage BIM geometry.
   const fragments = components.get(OBC.FragmentsManager);
 
-  const workerUrl = await OBC.FragmentsManager.getWorker();
-  fragments.init(workerUrl);
+  fragments.init(
+    `${import.meta.env.BASE_URL}worker.mjs`
+  );
 
   // Update visible geometry when the camera moves.
   world.camera.controls.addEventListener(
@@ -46,9 +47,14 @@ export async function createIfcViewer(container) {
 
   await ifcLoader.setup({
     autoSetWasm: false,
+
     wasm: {
-      path: "/wasm/",
-      absolute: false
+      path: new URL(
+        `${import.meta.env.BASE_URL}wasm/`,
+        window.location.origin
+      ).href,
+
+      absolute: true
     }
   });
 
