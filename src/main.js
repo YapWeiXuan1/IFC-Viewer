@@ -1,7 +1,11 @@
 import './style.css';
+import * as THREE from 'three';
 import { createIfcViewer } from './viewer.js';
 import { ElementInspector } from "./element-inspector.js";
 import { setupModelPicker } from "./model-picker.js";
+import { buildIfcElementIndex, downloadIfcElementIndex } from './ifc-indexer.js';
+import { setupMappingWorkspace } from './mapping-workspace.js';
+import { getAssetById, getMappingStatus } from './services/fobeApi.js';
 
 const models = [
   { key: 'building', name: 'Building Overview', file: 'building.ifc', frag: 'building.frag', glyph: '▦' },
@@ -14,12 +18,39 @@ const byId = id => document.getElementById(id);
 const cache = new Map();
 const pending = new Map();
 const conversions = new Map();
+const fragmentFallbackModels = new Set();
+const dashboardIndexes = new Map();
 let viewer;
 let activeKey = null;
 let switchGeneration = 0;
 let conversionBusy = false;
 let inspector;
 let picker;
+let mappingWorkspace;
+let elementInfoGeneration = 0;
+
+function refreshViewerLayout() {
+  requestAnimationFrame(() => {
+    if (!viewer) return;
+    // SimpleRenderer also observes its container, but this keeps a drag and a
+    // preset switch in lockstep with the canvas and camera aspect ratio.
+    viewer.world.renderer.resize();
+    viewer.world.camera.updateAspect();
+    viewer.fragments.core.update(true);
+  });
+}
+
+async function frameModel(model) {
+  if (!model?.box || model.box.isEmpty()) return;
+  const sphere = model.box.getBoundingSphere(new THREE.Sphere());
+  // A modest margin keeps room edges and selected elements clear of the viewport.
+  // Mapping uses a smaller viewport than Dashboard, so leave deliberate room
+  // around the building rather than making the model press against its edges.
+  sphere.radius *= 1.3;
+  await viewer.world.camera.controls.fitToSphere(sphere, true);
+  await viewer.fragments.core.update(true);
+}
+
 
 function status(message, state = 'ok') {
   byId('status').textContent = message;
@@ -44,6 +75,17 @@ function setActiveTab(name) {
   byId('converter-pane').classList.toggle('hidden', name !== 'converter');
   byId('tab-properties').classList.toggle('active', name === 'properties');
   byId('tab-converter').classList.toggle('active', name === 'converter');
+  refreshViewerLayout();
+}
+
+function setAppView(view) {
+  const mapping = view === 'mapping';
+  byId('app').classList.toggle('mapping-mode', mapping);
+  byId('nav-dashboard').classList.toggle('active', !mapping);
+  byId('nav-mapping').classList.toggle('active', mapping);
+  if (mapping) void mappingWorkspace?.activate(inspector?.current);
+  else mappingWorkspace?.deactivate();
+  refreshViewerLayout();
 }
 async function bytesFrom(url) {
   const response = await fetch(url);
@@ -54,8 +96,19 @@ async function ensureLoaded(m) {
   if (cache.has(m.key)) return cache.get(m.key);
   if (pending.has(m.key)) return pending.get(m.key);
   const task = (async () => {
-    const bytes = await bytesFrom(`/fragments/${m.frag}`);
-    const model = await viewer.fragments.core.load(bytes, { modelId: m.key });
+    let model;
+    try {
+      const bytes = await bytesFrom(`/fragments/${m.frag}`);
+      model = await viewer.fragments.core.load(bytes, { modelId: m.key });
+    } catch (fragmentError) {
+      // A bad or version-incompatible pre-generated fragment must not make a
+      // source IFC unavailable. The loaded source model remains read-only and
+      // can later be exported through the existing converter flow.
+      console.warn(`Fragment load failed for ${m.key}; loading source IFC instead.`, fragmentError);
+      const sourceBytes = await bytesFrom(`/models/${m.file}`);
+      model = await viewer.ifcLoader.load(sourceBytes, false, m.key);
+      fragmentFallbackModels.add(m.key);
+    }
     cache.set(m.key, model);
     model.object.visible = m.key === activeKey;
     updateCacheInfo();
@@ -89,9 +142,11 @@ async function switchModel(key) {
     }
     await viewer.fragments.core.update(true);
     if (generation !== switchGeneration) return;
+    await frameModel(model);
+    if (generation !== switchGeneration) return;
     byId('active-state').textContent = 'Ready';
     byId('switch-time').textContent = `Switch: ${Math.round(performance.now() - start)} ms`;
-    status(`${m.name} ready`);
+    status(`${m.name} ready${fragmentFallbackModels.has(m.key) ? ' (source IFC fallback; regenerate its .frag)' : ''}`);
     overlay(null);
     updateNavigation();
   } catch (e) {
@@ -108,6 +163,27 @@ async function preloadOthers() {
     try { await ensureLoaded(m); } catch (e) { console.warn(`Preload skipped ${m.name}:`, e.message); }
   }
   status('Background preload finished');
+}
+async function exportActiveModelIndex() {
+  const model = cache.get(activeKey);
+  if (!model || !activeKey) {
+    status('Load a model before exporting its IFC element index.', 'error');
+    return;
+  }
+  const button = byId('export-index-btn');
+  button.disabled = true;
+  status(`Indexing ${activeKey} IFC elements…`);
+  try {
+    const index = await buildIfcElementIndex(model, activeKey);
+    downloadIfcElementIndex(index);
+    byId('index-summary').textContent = `${index.elementCount} geometry elements · ${index.stableIdentityCount} GlobalIds · ${Object.keys(index.typeCounts).length} IFC types`;
+    status(`${activeKey} IFC element index downloaded`);
+  } catch (e) {
+    console.error(e);
+    status(`IFC index failed: ${e.message}`, 'error');
+  } finally {
+    button.disabled = false;
+  }
 }
 async function convertModel(m) {
   if (conversionBusy) return;
@@ -150,7 +226,10 @@ function renderControls() {
     const button = document.createElement('button');
     button.className = 'model-button'; button.id = `nav-${m.key}`;
     button.innerHTML = `<span class="model-glyph">${m.glyph}</span><span><span class="model-name">${m.name}</span><span class="model-sub" style="display:block">Not loaded</span></span>`;
-    button.onclick = () => switchModel(m.key);
+    button.onclick = () => {
+      byId('app').classList.remove('drawer-open');
+      void switchModel(m.key);
+    };
     list.appendChild(button);
     const card = document.createElement('div'); card.className = 'convert-card';
     card.innerHTML = `<strong>${m.name}</strong><small>${m.file} → ${m.frag}</small><div class="actions"><button id="convert-${m.key}">Convert IFC</button><button class="secondary" id="download-${m.key}" disabled>Download .frag</button></div><span class="result" id="convert-result-${m.key}">Not converted this session</span>`;
@@ -163,12 +242,13 @@ async function start() {
   renderControls();
   byId('tab-properties').onclick = () => setActiveTab('properties');
   byId('tab-converter').onclick = () => setActiveTab('converter');
+  byId('nav-dashboard').onclick = () => setAppView('dashboard');
+  byId('nav-mapping').onclick = () => setAppView('mapping');
   byId('preload-btn').onclick = () => void preloadOthers();
+  byId('export-index-btn').onclick = () => void exportActiveModelIndex();
+  byId('model-drawer-toggle').onclick = () => byId('app').classList.toggle('drawer-open');
   byId('reload-btn').onclick = () => void viewer?.fragments.core.update(true);
-  byId('fit-btn').onclick = () => {
-    // Camera fitting needs version-specific Fragments bounds API.
-    status('Camera fitting not wired yet; use mouse controls.', 'error');
-  };
+  byId('fit-btn').onclick = () => void frameModel(cache.get(activeKey));
   try {
     viewer = await createIfcViewer(byId('viewer'));
     inspector = new ElementInspector({
@@ -179,6 +259,7 @@ async function start() {
         if (!panel) return;
 
         if (!element) {
+          mappingWorkspace?.clearSelection();
           panel.replaceChildren();
 
           const message = document.createElement("p");
@@ -187,6 +268,7 @@ async function start() {
           return;
         }
 
+        const infoGeneration = ++elementInfoGeneration;
         panel.replaceChildren();
 
         const heading = document.createElement("h3");
@@ -200,6 +282,9 @@ async function start() {
         itemInfo.textContent =
           `Local ID: ${element.itemId}`;
 
+        const globalIdInfo = document.createElement("p");
+        globalIdInfo.textContent = `IFC GlobalId: ${element.ifcGlobalId || 'Not available in this model data'}`;
+
         const properties = document.createElement("pre");
         properties.textContent = JSON.stringify(
           element.properties,
@@ -211,14 +296,68 @@ async function start() {
           heading,
           modelInfo,
           itemInfo,
+          globalIdInfo,
           properties
         );
+
+        const mappingContainer = document.createElement('div');
+        mappingContainer.className = 'element-mapping';
+        const openWorkspace = document.createElement('button');
+        openWorkspace.className = 'mapping-button';
+        openWorkspace.textContent = 'Map this IFC element';
+        openWorkspace.disabled = !element.ifcGlobalId;
+        openWorkspace.addEventListener('click', () => setAppView('mapping'));
+        mappingContainer.appendChild(openWorkspace);
+        panel.appendChild(mappingContainer);
+        mappingWorkspace?.setSelection(element);
+        // Dashboard renders confirmed mapping data only; manual search and
+        // mapping management live exclusively in the Asset Mapping view.
+        void (async () => {
+          let indexed = element;
+          try {
+            const model = cache.get(element.modelKey);
+            if (model) {
+              const index = dashboardIndexes.get(element.modelKey) || await buildIfcElementIndex(model, element.modelKey);
+              dashboardIndexes.set(element.modelKey, index);
+              indexed = index.elements.find(item => item.identity.globalId === element.ifcGlobalId) || element;
+            }
+          } catch (error) { console.warn('Dashboard IFC metadata unavailable', error); }
+          if (infoGeneration !== elementInfoGeneration) return;
+          const metadata = document.createElement('p');
+          metadata.textContent = `IFC: ${indexed.name || 'Not available'} · ${indexed.ifcType || 'Not available'} · ObjectType: ${indexed.objectType || 'Not available'} · Tag: ${indexed.tag || 'Not available'} · Room: ${indexed.room?.name || 'Unknown'} (${indexed.roomSource || 'UNKNOWN'}) · Classification: ${indexed.candidate?.classification || 'Not available'}`;
+          panel.appendChild(metadata);
+          try {
+            const mapping = await getMappingStatus({ modelKey: element.modelKey, globalId: element.ifcGlobalId });
+            const asset = await getAssetById(mapping.itemit_item_id);
+            if (infoGeneration !== elementInfoGeneration) return;
+            const mapped = document.createElement('p');
+            mapped.textContent = `Mapped itemit asset: ${asset.name || 'Unnamed'} · ${asset.id} · Serial: ${asset.serial || 'Not available'} · Location: ${asset.current_location || 'Not available'} · ${mapping.mapping_status}`;
+            panel.appendChild(mapped);
+          } catch (error) {
+            if (infoGeneration !== elementInfoGeneration) return;
+            const mapped = document.createElement('p');
+            mapped.textContent = error.status === 404 ? 'Not Mapped' : 'Mapping status unavailable';
+            panel.appendChild(mapped);
+          }
+        })();
       }
     });
     picker = setupModelPicker({
       viewer,
       getActiveModel: () => cache.get(activeKey),
       inspector
+    });
+    mappingWorkspace = setupMappingWorkspace({
+      getModel: key => cache.get(key),
+      ensureModel: async key => ensureLoaded(models.find(model => model.key === key)),
+      selectIfcInViewer: async element => {
+        const modelKey = element.identity?.modelKey || element.modelKey;
+        if (!modelKey || element.sourceLocalId == null) return;
+        if (activeKey !== modelKey) await switchModel(modelKey);
+        const model = cache.get(modelKey);
+        await picker?.select(model, element.sourceLocalId);
+      },
+      modelCatalog: models
     });
     status('3D engine initialized');
     await switchModel('building');

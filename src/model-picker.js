@@ -30,32 +30,10 @@ export function setupModelPicker({
     await viewer.fragments.core.update(true);
   }
 
-  async function onClick(event) {
-    if (picking) return;
-
-    const model = getActiveModel();
-    if (!model) return;
-
+  async function selectElement(model, localId) {
+    if (picking || !model || localId == null) return;
     picking = true;
-
     try {
-      // Use client coordinates, not normalized device coordinates.
-      const mouse = new THREE.Vector2(
-        event.clientX,
-        event.clientY
-      );
-
-      const hit = await model.raycast({
-        camera: viewer.world.camera.three,
-        mouse,
-        dom: canvas
-      });
-
-      if (!hit) {
-        await clearSelection();
-        return;
-      }
-
       // Clear the previous highlight.
       if (selection) {
         await selection.model.resetHighlight([
@@ -65,17 +43,17 @@ export function setupModelPicker({
 
       selection = {
         model,
-        localId: hit.localId
+        localId
       };
 
       await model.highlight(
-        [hit.localId],
+        [localId],
         highlightMaterial
       );
 
       await viewer.fragments.core.update(true);
 
-      await inspector.select(model, hit.localId);
+      await inspector.select(model, localId);
 
     } catch (error) {
       console.error("Element selection failed:", error);
@@ -84,10 +62,27 @@ export function setupModelPicker({
     }
   }
 
+  async function onClick(event) {
+    const model = getActiveModel();
+    if (!model || picking) return;
+    try {
+      const hit = await model.raycast({
+        camera: viewer.world.camera.three,
+        mouse: new THREE.Vector2(event.clientX, event.clientY),
+        dom: canvas
+      });
+      if (!hit) return await clearSelection();
+      await selectElement(model, hit.localId);
+    } catch (error) {
+      console.error("Element selection failed:", error);
+    }
+  }
+
   canvas.addEventListener("click", onClick);
 
   return {
     clearSelection,
+    select: selectElement,
     dispose() {
       canvas.removeEventListener("click", onClick);
     }

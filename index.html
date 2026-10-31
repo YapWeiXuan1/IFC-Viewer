@@ -16,6 +16,8 @@
       </div>
       <div class="top-right"><span id="status-dot" class="dot"></span><span id="status">Initializing viewer…</span>
       </div>
+      <nav class="page-nav" aria-label="Application views"><button id="nav-dashboard" class="workspace-nav-btn active">Dashboard</button><button id="nav-mapping" class="workspace-nav-btn">Asset Mapping</button></nav>
+      <button id="model-drawer-toggle" class="workspace-nav-btn">Models</button>
     </header>
     <div class="workspace">
       <aside class="sidebar">
@@ -27,7 +29,7 @@
         <div id="model-list" class="model-list"></div>
         <div class="sidebar-footer"><span class="eyebrow">QUICK ACTIONS</span><button id="fit-btn" class="outline-btn">⌗
             &nbsp; Fit camera to model</button><button id="preload-btn" class="outline-btn">↻ &nbsp; Preload other
-            models</button></div>
+            models</button><button id="export-index-btn" class="outline-btn">Export IFC element index</button><small id="index-summary" class="index-summary">No IFC index exported</small></div>
       </aside>
       <section class="center">
         <div class="view-toolbar">
@@ -46,9 +48,9 @@
         <div class="bottom-strip"><span>◈ &nbsp; Local Fragments engine</span><span id="cache-info">0 / 5 models
             cached</span><span id="switch-time">Switch: —</span></div>
       </section>
+      <div id="mapping-resizer" class="mapping-resizer" role="separator" aria-label="Resize 3D viewer and mapping workspace" aria-orientation="vertical" tabindex="0"></div>
       <aside class="right-panel">
-        <div class="tabbar"><button id="tab-properties" class="tab active">ELEMENT INFO</button><button
-            id="tab-converter" class="tab">IFC CONVERTER</button></div>
+        <div class="tabbar"><button id="tab-properties" class="tab active">ELEMENT INFO</button><button id="tab-converter" class="tab">IFC CONVERTER</button></div>
         <div id="properties-pane" class="panel-body">
           <div class="panel-heading">
             <h3>Element inspector</h3>
@@ -75,6 +77,38 @@
       </aside>
     </div>
   </div>
+  <section id="mapping-workspace" class="mapping-workspace hidden" aria-label="IFC to itemit Mapping Workspace">
+    <p id="workspace-message" class="workspace-message">Select an IFC element from the viewer or list. No mapping is confirmed automatically.</p>
+    <div class="workspace-grid">
+      <div id="workspace-viewer-slot" class="workspace-viewer-slot"></div>
+      <aside class="workspace-controls-pane">
+        <section class="workspace-ifc-pane">
+          <h3>IFC elements</h3>
+          <p class="workspace-panel-subtitle">Browse and select elements from your IFC model</p>
+          <label class="workspace-field-label" for="workspace-model">Model</label>
+          <select id="workspace-model" class="asset-search"></select>
+          <label class="workspace-field-label" for="workspace-ifc-scope">Asset classification</label>
+          <select id="workspace-ifc-scope" class="asset-search"><option value="likely">Likely Assets</option><option value="review">Include Needs Review</option><option value="all">All IFC Elements</option></select>
+          <input id="workspace-ifc-search" class="asset-search" type="search" placeholder="Search IFC name, type, or GlobalId" />
+          <div id="workspace-ifc-list" class="workspace-scroll"></div>
+        </section>
+        <section class="workspace-details-pane">
+          <section class="workspace-review"><h3>Selection Summary</h3><p class="workspace-panel-subtitle">Selected IFC elements for mapping</p><div class="workspace-review-records"><div id="workspace-review-ifc" class="workspace-card">Select an IFC element.</div><div id="workspace-candidate" class="workspace-card">Select an itemit asset.</div></div></section>
+          <section class="workspace-assets-pane">
+            <h3>Manual itemit search</h3>
+            <p class="workspace-panel-subtitle">Search and assign itemit assets</p>
+            <div class="workspace-search-controls"><input id="workspace-asset-query" class="asset-search" type="search" placeholder="Search itemit asset name or serial number" /><button id="workspace-filter-toggle" class="secondary workspace-filter-toggle" type="button" aria-expanded="false" aria-controls="workspace-filter-popover">Filters <span id="workspace-filter-count" class="workspace-filter-count" hidden></span></button></div>
+            <section id="workspace-filter-popover" class="workspace-filter-popover" aria-label="itemit filters" hidden><div class="workspace-filter-popover-head"><strong>Filters</strong><button id="workspace-reset-filters" class="workspace-clear-filters" type="button" hidden>Clear all</button></div><div class="workspace-filters"><label>Location<select id="workspace-asset-location" class="asset-search"><option value="">All locations</option></select></label><label>Collection<select id="workspace-asset-collection" class="asset-search"><option value="">All Collections</option><option value="UNKNOWN">Unknown</option></select></label><label>Mapping State<select id="workspace-asset-status" class="asset-search"><option value="">All mapping states</option><option value="Unmapped">Unmapped</option><option value="PROVISIONAL">Provisional</option><option value="CONFIRMED">Confirmed</option></select></label></div></section>
+            <div id="workspace-active-filters" class="workspace-active-filters" aria-label="Active filters"></div>
+            <p id="workspace-result-count" class="workspace-count">Select an IFC element to load inventory candidates.</p>
+            <div id="workspace-asset-list" class="workspace-scroll"></div>
+            <div class="workspace-pagination"><button id="workspace-previous" class="secondary">Previous</button><span id="workspace-page">Page 1 of 1</span><button id="workspace-next" class="secondary">Next</button></div>
+          </section>
+          <div class="workspace-actions"><button id="workspace-save" disabled>Create mapping</button><button id="workspace-remove" class="secondary" disabled>Unlink mapping</button></div>
+        </section>
+      </aside>
+    </div>
+  </section>
   <script type="module" src="/src/main.js"></script>
 </body>
 
