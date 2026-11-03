@@ -9,14 +9,6 @@
 
 <body>
   <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">◈</div>
-        <div><strong>BIM STUDIO</strong></div>
-      </div>
-      <div class="top-right sr-only" aria-live="polite"><span id="status-dot" class="dot"></span><span id="status">Initializing viewer…</span>
-      </div>
-    </header>
     <div class="workspace">
       <aside class="sidebar">
         <div class="sidebar-head">
@@ -24,9 +16,7 @@
         </div>
         <div class="nav-title">Available models</div>
         <div id="model-list" class="model-list"></div>
-        <div class="sidebar-footer"><button id="fit-btn" class="outline-btn">⌗
-            &nbsp; Fit camera to model</button><button id="nav-mapping" class="outline-btn">Asset Mapping</button><button id="preload-btn" class="outline-btn">↻ &nbsp; Preload other
-            models</button><button id="export-index-btn" class="outline-btn">Export IFC element index</button><small id="index-summary" class="index-summary">No IFC index exported</small></div>
+        <div class="sidebar-footer"><span class="eyebrow">QUICK ACTIONS</span><button id="nav-mapping" class="outline-btn">Asset Mapping</button><button id="preload-btn" class="outline-btn">↻ &nbsp; Preload other models</button></div>
       </aside>
       <section class="center">
         <div class="view-toolbar">

@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { createIfcViewer } from './viewer.js';
 import { ElementInspector } from "./element-inspector.js";
 import { setupModelPicker } from "./model-picker.js";
-import { buildIfcElementIndex, downloadIfcElementIndex } from './ifc-indexer.js';
 import { setupMappingWorkspace } from './mapping-workspace.js';
 import { getAssetById, getMappingStatus } from './services/fobeApi.js';
 import { createCameraViews } from './camera-views.js';
@@ -57,8 +56,10 @@ async function frameModel(model) {
 
 
 function status(message, state = 'ok') {
-  byId('status').textContent = message;
-  byId('status-dot').className = `dot ${state}`;
+  const statusElement = byId('status');
+  const statusDot = byId('status-dot');
+  if (statusElement) statusElement.textContent = message;
+  if (statusDot) statusDot.className = `dot ${state}`;
 }
 function overlay(message) {
   byId('viewer-overlay').textContent = message || '';
@@ -168,27 +169,6 @@ async function preloadOthers() {
   }
   status('Background preload finished');
 }
-async function exportActiveModelIndex() {
-  const model = cache.get(activeKey);
-  if (!model || !activeKey) {
-    status('Load a model before exporting its IFC element index.', 'error');
-    return;
-  }
-  const button = byId('export-index-btn');
-  button.disabled = true;
-  status(`Indexing ${activeKey} IFC elements…`);
-  try {
-    const index = await buildIfcElementIndex(model, activeKey);
-    downloadIfcElementIndex(index);
-    byId('index-summary').textContent = `${index.elementCount} geometry elements · ${index.stableIdentityCount} GlobalIds · ${Object.keys(index.typeCounts).length} IFC types`;
-    status(`${activeKey} IFC element index downloaded`);
-  } catch (e) {
-    console.error(e);
-    status(`IFC index failed: ${e.message}`, 'error');
-  } finally {
-    button.disabled = false;
-  }
-}
 async function convertModel(m) {
   if (conversionBusy) return;
   conversionBusy = true;
@@ -247,9 +227,7 @@ async function start() {
   byId('tab-converter').onclick = () => setActiveTab('converter');
   byId('nav-mapping').onclick = () => setAppView('mapping');
   byId('preload-btn').onclick = () => void preloadOthers();
-  byId('export-index-btn').onclick = () => void exportActiveModelIndex();
   byId('reload-btn').onclick = () => void viewer?.fragments.core.update(true);
-  byId('fit-btn').onclick = () => void frameModel(cache.get(activeKey));
   try {
     viewer = await createIfcViewer(byId('viewer'));
     cameraViews = createCameraViews(viewer, () => cache.get(activeKey));
