@@ -22,13 +22,14 @@ function appendLine(parent, className, text) {
   node.className = className;
   node.textContent = text;
   parent.appendChild(node);
+  return node;
 }
 
 // Native select popups are owned by the browser, so their width and height
 // cannot be constrained reliably. This small adapter keeps the select as the
 // source of truth for existing mapping/filter logic while presenting a
 // viewport-aware listbox for the controls that need it.
-function createViewportCombobox(select, { searchable = false } = {}) {
+function createViewportCombobox(select, { searchable = false, maxMenuHeight = 280 } = {}) {
   const wrapper = document.createElement('div');
   wrapper.className = 'workspace-combobox';
   const trigger = document.createElement('button');
@@ -82,7 +83,7 @@ function createViewportCombobox(select, { searchable = false } = {}) {
     const width = Math.max(0, Math.min(rect.width, window.innerWidth - edge * 2));
     const left = Math.max(edge, Math.min(rect.left, window.innerWidth - width - edge));
     menu.style.width = `${width}px`;
-    menu.style.maxHeight = `${Math.min(280, available)}px`;
+    menu.style.maxHeight = `${Math.min(maxMenuHeight, available)}px`;
     menu.style.left = `${left}px`;
     menu.style.top = openAbove ? 'auto' : `${Math.min(window.innerHeight - edge, rect.bottom + 4)}px`;
     menu.style.bottom = openAbove ? `${Math.max(edge, window.innerHeight - rect.top + 4)}px` : 'auto';
@@ -199,6 +200,51 @@ function identity(element) {
   return modelKey && globalId ? { modelKey, globalId } : null;
 }
 
+export function getBatchProgress(batch = []) {
+  const assigned = batch.filter(entry => entry.asset?.id).length;
+  const conflicts = batch.filter(entry => entry.result?.status === 'Conflict').length;
+  return { total: batch.length, assigned, pending: batch.length - assigned, conflicts };
+}
+
+export function findBatchAssetConflict(batch = [], assetId, exceptKey = null) {
+  if (!assetId) return null;
+  return batch.find(entry => entry.key !== exceptKey && entry.asset?.id === assetId) || null;
+}
+
+export function nextUnassignedBatchEntry(batch = [], afterKey = null) {
+  if (!batch.length) return null;
+  const start = Math.max(0, batch.findIndex(entry => entry.key === afterKey));
+  for (let offset = 1; offset <= batch.length; offset += 1) {
+    const entry = batch[(start + offset) % batch.length];
+    if (!entry.asset?.id) return entry;
+  }
+  return null;
+}
+
+export function validateBatchProposals(batch = []) {
+  const errors = [];
+  const ifcKeys = new Set();
+  const assetIds = new Set();
+  for (const entry of batch) {
+    if (!entry?.key || ifcKeys.has(entry.key)) errors.push('Each submitted IFC element must have a unique model key and GlobalId.');
+    ifcKeys.add(entry?.key);
+    const assetId = entry?.asset?.id;
+    if (!assetId) continue;
+    if (assetIds.has(assetId)) errors.push('Each submitted itemit asset UUID must be assigned to only one IFC element.');
+    assetIds.add(assetId);
+  }
+  return [...new Set(errors)];
+}
+
+export function resolveOverviewElementToRoom(element, roomIndexes = []) {
+  const globalId = identity(element)?.globalId;
+  if (!globalId) return null;
+  const matches = roomIndexes
+    .map(index => index?.elements?.find(candidate => candidate.identity?.globalId === globalId))
+    .filter(Boolean);
+  return matches.length === 1 ? matches[0] : null;
+}
+
 export function includesInIfcScope(element, scope, mappings = []) {
   const id = identity(element);
   const isMapped = id && mappings.some(mapping => mapping.model_key === id.modelKey && mapping.ifc_global_id === id.globalId);
@@ -207,7 +253,7 @@ export function includesInIfcScope(element, scope, mappings = []) {
   return element?.candidate?.classification === 'LIKELY_ASSET';
 }
 
-export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer, modelCatalog }) {
+export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer, focusIfcInViewer, modelCatalog }) {
   const root = document.getElementById('mapping-workspace');
   const viewerSlot = document.getElementById('workspace-viewer-slot');
   const viewerCenter = document.querySelector('.center');
@@ -215,7 +261,9 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   const ifcSearch = document.getElementById('workspace-ifc-search');
   const ifcModel = document.getElementById('workspace-model');
   const ifcScope = document.getElementById('workspace-ifc-scope');
+  const ifcStatus = document.getElementById('workspace-ifc-status');
   const ifcList = document.getElementById('workspace-ifc-list');
+  const ifcResultCount = document.getElementById('workspace-ifc-result-count');
   const assetQuery = document.getElementById('workspace-asset-query');
   const assetLocation = document.getElementById('workspace-asset-location');
   const assetCollection = document.getElementById('workspace-asset-collection');
@@ -225,6 +273,7 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   const filterCount = document.getElementById('workspace-filter-count');
   const activeFilters = document.getElementById('workspace-active-filters');
   const resetFilters = document.getElementById('workspace-reset-filters');
+  const applyFilters = document.getElementById('workspace-filter-apply');
   const assetList = document.getElementById('workspace-asset-list');
   const count = document.getElementById('workspace-result-count');
   const previous = document.getElementById('workspace-previous');
@@ -238,7 +287,7 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   const remove = document.getElementById('workspace-remove');
   const message = document.getElementById('workspace-message');
   const dropdowns = {};
-  const state = { open: false, mode: 'single', generation: 0, indexes: new Map(), assets: null, mappings: [], mappingApiAvailable: false, selectedIfc: null, selectedAsset: null, page: 0, ifcVisibleLimit: 150, locationFilterSource: 'auto', batch: [], activeBatchKey: null };
+  const state = { open: false, mode: 'single', generation: 0, indexes: new Map(), assets: null, mappings: [], mappingApiAvailable: false, selectedIfc: null, selectedAsset: null, page: 0, ifcVisibleLimit: 150, locationFilterSource: 'auto', batch: [], activeBatchKey: null, batchReviewOpen: false };
 
   message.textContent = '';
   ifcScope.replaceChildren(
@@ -248,27 +297,73 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   );
   const modeControls = document.createElement('div');
   modeControls.className = 'workspace-batch-controls';
-  const modeToggle = document.createElement('button'); modeToggle.type = 'button';
+  const modeLabel = document.createElement('span'); modeLabel.className = 'workspace-mode-label'; modeLabel.textContent = 'Mapping mode';
+  const modeToggle = document.createElement('button'); modeToggle.type = 'button'; modeToggle.textContent = 'Single';
+  const batchModeToggle = document.createElement('button'); batchModeToggle.type = 'button'; batchModeToggle.textContent = 'Batch';
   const addToBatch = document.createElement('button'); addToBatch.type = 'button'; addToBatch.textContent = 'Add selected to batch';
   const clearBatch = document.createElement('button'); clearBatch.type = 'button'; clearBatch.textContent = 'Clear batch';
   const batchCount = document.createElement('span');
-  const selectionIndicator = document.createElement('span'); selectionIndicator.className = 'workspace-selection-indicator';
-  modeControls.append(modeToggle, addToBatch, clearBatch, batchCount, selectionIndicator);
+  modeControls.append(modeLabel, modeToggle, batchModeToggle, addToBatch, clearBatch, batchCount);
   ifcList.before(modeControls);
   const assignButton = document.createElement('button');
-  assignButton.type = 'button'; assignButton.className = 'workspace-assign-button'; assignButton.textContent = 'Assign to Selected IFC'; assignButton.disabled = true;
+  assignButton.type = 'button'; assignButton.className = 'workspace-assign-button'; assignButton.textContent = 'Assign & Next'; assignButton.disabled = true;
   assetList.after(assignButton);
 
   function batchKey(element) { const id = identity(element); return id && `${id.modelKey}:${id.globalId}`; }
-  function batchEntry(element) { return state.batch.find(entry => entry.key === batchKey(element)); }
+  function batchEntry(element) {
+    const id = identity(element);
+    return state.batch.find(entry => entry.key === batchKey(element)
+      || (id?.modelKey === 'building' && entry.element?.overviewSource?.modelKey === 'building' && entry.element.overviewSource.globalId === id.globalId));
+  }
+  function viewerTarget(element) {
+    if (!element?.overviewSource) return element;
+    return {
+      ...element,
+      sourceLocalId: element.overviewSource.sourceLocalId,
+      identity: { ...element.identity, modelKey: element.overviewSource.modelKey }
+    };
+  }
+  function focusActiveIfc(element) {
+    return Promise.resolve(focusIfcInViewer?.(viewerTarget(element)));
+  }
+  function batchConflict(assetId, exceptKey = state.activeBatchKey) { return findBatchAssetConflict(state.batch, assetId, exceptKey); }
+  function batchReservationLabel(entry) {
+    const id = identity(entry?.element);
+    const tag = entry?.element?.tag || entry?.element?.objectType || id?.globalId?.slice(-6) || 'not available';
+    return `Already assigned in this batch · Tag ${tag}`;
+  }
+  function renderCandidate(asset = state.selectedAsset) {
+    candidate.replaceChildren();
+    if (!asset?.id) { candidate.textContent = 'Select an itemit asset.'; return; }
+    appendLine(candidate, 'review-label', 'itemit asset');
+    appendLine(candidate, 'review-name', value(asset.name));
+    const metadata = document.createElement('span'); metadata.className = 'review-summary-fields';
+    for (const [label, field] of [['Serial', asset.serial], ['Location', asset.current_location], ['Mapping status', candidateStatus(asset)]]) {
+      appendLine(metadata, 'review-meta', `${label}: ${value(field)}`);
+    }
+    candidate.appendChild(metadata);
+    const persisted = state.mappings.find(mapping => mapping.itemit_item_id === asset.id);
+    if (persisted) appendLine(candidate, 'review-linked-ifc', linkedIfcLabel(persisted));
+  }
+  function activateBatchEntry(entry, { focus = false } = {}) {
+    if (!entry) return;
+    state.activeBatchKey = entry.key;
+    state.selectedIfc = entry.element;
+    state.selectedAsset = entry.asset || null;
+    renderCandidate(); renderSelected(); renderBatchQueue(); renderAssets(); renderWorkspace();
+    assignButton.disabled = !state.selectedAsset;
+    if (focus) void focusActiveIfc(entry.element).catch(error => console.warn('Unable to focus the active batch IFC element.', error));
+  }
   function renderWorkspace() {
     root.dataset.mappingMode = state.mode;
-    modeToggle.textContent = 'Single Mapping';
     modeToggle.classList.toggle('active', state.mode === 'single');
-    addToBatch.hidden = false; clearBatch.hidden = false;
-    addToBatch.classList.toggle('active', state.mode === 'batch');
+    batchModeToggle.classList.toggle('active', state.mode === 'batch');
+    addToBatch.hidden = state.mode !== 'batch';
+    clearBatch.hidden = state.mode !== 'batch' || state.batch.length === 0;
     clearBatch.disabled = state.batch.length === 0;
-    batchCount.textContent = state.mode === 'batch' ? `${state.batch.length} IFC element${state.batch.length === 1 ? '' : 's'} selected` : '';
+    const progress = getBatchProgress(state.batch);
+    batchCount.textContent = state.mode === 'batch' ? `${progress.assigned} assigned · ${progress.pending} pending` : '';
+    save.textContent = state.mode === 'batch' ? 'Submit batch mappings' : (mappingForCurrent() ? 'Confirm remap' : 'Create provisional mapping');
     const searchHeading = assetsPane.querySelector('h3');
     if (searchHeading) searchHeading.textContent = 'Manual itemit Search';
     let subtitle = assetsPane.querySelector('.workspace-assignment-subtitle');
@@ -286,21 +381,50 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   }
   function removeBatch(key) {
     state.batch = state.batch.filter(entry => entry.key !== key);
-    if (state.activeBatchKey === key) state.activeBatchKey = state.batch[0]?.key || null;
+    if (state.activeBatchKey === key) {
+      const next = state.batch.find(entry => !entry.asset?.id) || state.batch[0] || null;
+      state.activeBatchKey = next?.key || null;
+      if (next) activateBatchEntry(next, { focus: true });
+    }
     renderIfcList(); renderBatchQueue(); renderWorkspace();
   }
-  modeToggle.addEventListener('click', () => { state.mode = 'single'; renderIfcList(); renderBatchQueue(); renderWorkspace(); });
+  modeToggle.addEventListener('click', async () => {
+    state.mode = 'single';
+    renderIfcList(); renderBatchQueue(); renderWorkspace();
+    if (!state.selectedIfc) return;
+    try {
+      await focusActiveIfc(state.selectedIfc);
+      const selectedKey = batchKey(state.selectedIfc);
+      ifcList.querySelectorAll('.workspace-ifc-item').forEach(item => {
+        if (item.dataset.ifcKey === selectedKey) item.focus({ preventScroll: false });
+      });
+    } catch (error) {
+      console.warn('Unable to focus the selected IFC element.', error);
+    }
+  });
+  batchModeToggle.addEventListener('click', () => {
+    state.mode = 'batch';
+    renderIfcList(); renderBatchQueue(); renderWorkspace();
+  });
   addToBatch.addEventListener('click', () => { state.mode = 'batch'; if (state.selectedIfc) addBatch(state.selectedIfc); else renderWorkspace(); });
-  clearBatch.addEventListener('click', () => { state.batch = []; state.activeBatchKey = null; renderIfcList(); renderBatchQueue(); renderWorkspace(); });
+  clearBatch.addEventListener('click', () => {
+    if (state.batch.length && !window.confirm('Clear this batch and discard its unsaved assignments?')) return;
+    state.batch = []; state.activeBatchKey = null; renderIfcList(); renderBatchQueue(); renderWorkspace();
+  });
   assignButton.addEventListener('click', () => {
     const entry = state.batch.find(item => item.key === state.activeBatchKey);
     if (!entry || !state.selectedAsset) return;
-    const duplicate = state.batch.find(item => item.key !== entry.key && item.asset?.id === state.selectedAsset.id && identity(item.element)?.modelKey === identity(entry.element)?.modelKey);
-    if (duplicate) { setMessage('That itemit asset is already proposed for another IFC element in this model.', 'error'); return; }
+    const duplicate = batchConflict(state.selectedAsset.id, entry.key);
+    if (duplicate) { setMessage('Already assigned in this batch. Choose another itemit asset or change the existing proposal.', 'error'); return; }
     entry.asset = state.selectedAsset; entry.result = null;
-    const nextPending = state.batch.find(item => !item.asset);
-    if (nextPending) { state.activeBatchKey = nextPending.key; state.selectedIfc = nextPending.element; state.selectedAsset = null; renderSelected(); }
-    renderBatchQueue(); renderAssets(); renderWorkspace();
+    const nextPending = nextUnassignedBatchEntry(state.batch, entry.key);
+    if (nextPending) {
+      activateBatchEntry(nextPending, { focus: true });
+      setMessage('');
+    } else {
+      renderBatchQueue(); renderAssets(); renderWorkspace();
+      setMessage('');
+    }
   });
 
   for (const model of modelCatalog) {
@@ -311,34 +435,18 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   }
   dropdowns.model = createViewportCombobox(ifcModel);
   dropdowns.ifcScope = createViewportCombobox(ifcScope);
+  dropdowns.ifcStatus = createViewportCombobox(ifcStatus);
   dropdowns.location = createViewportCombobox(assetLocation);
-  dropdowns.collection = createViewportCombobox(assetCollection, { searchable: true });
+  dropdowns.collection = createViewportCombobox(assetCollection, { maxMenuHeight: 220 });
   dropdowns.status = createViewportCombobox(assetStatus);
-  document.body.appendChild(filterPopover);
-
-  function positionFilterPopover() {
-    const rect = filterToggle.getBoundingClientRect();
-    const edge = 8;
-    const width = Math.min(Math.max(320, rect.width * 4), window.innerWidth - edge * 2);
-    const below = window.innerHeight - rect.bottom - edge;
-    const above = rect.top - edge;
-    const opensUpward = below < 250 && above > below;
-    const available = Math.max(160, opensUpward ? above : below);
-    filterPopover.style.width = `${width}px`;
-    filterPopover.style.maxHeight = `${Math.min(300, available)}px`;
-    filterPopover.style.left = `${Math.max(edge, Math.min(rect.right - width, window.innerWidth - width - edge))}px`;
-    filterPopover.style.top = opensUpward ? 'auto' : `${Math.min(window.innerHeight - edge, rect.bottom + 6)}px`;
-    filterPopover.style.bottom = opensUpward ? `${Math.max(edge, window.innerHeight - rect.top + 6)}px` : 'auto';
-    filterPopover.classList.toggle('opens-upward', opensUpward);
-  }
   function closeFilterPopover({ restoreFocus = false } = {}) {
     if (filterPopover.hidden) return;
+    [dropdowns.location, dropdowns.collection, dropdowns.status].forEach(dropdown => dropdown?.close());
     filterPopover.hidden = true;
     filterToggle.setAttribute('aria-expanded', 'false');
     if (restoreFocus) filterToggle.focus();
   }
   function openFilterPopover() {
-    positionFilterPopover();
     filterPopover.hidden = false;
     filterToggle.setAttribute('aria-expanded', 'true');
     filterPopover.querySelector('.workspace-combobox-trigger')?.focus();
@@ -351,11 +459,7 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   filterPopover.addEventListener('keydown', event => {
     if (event.key === 'Escape') { event.preventDefault(); closeFilterPopover({ restoreFocus: true }); }
   });
-  document.addEventListener('pointerdown', event => {
-    if (!filterToggle.contains(event.target) && !filterPopover.contains(event.target) && !event.target.closest?.('.workspace-combobox-menu')) closeFilterPopover();
-  });
-  window.addEventListener('resize', () => { if (!filterPopover.hidden) positionFilterPopover(); });
-  window.addEventListener('scroll', () => { if (!filterPopover.hidden) positionFilterPopover(); }, true);
+  applyFilters.addEventListener('click', () => closeFilterPopover({ restoreFocus: true }));
 
   function active(generation, selectedIfc = state.selectedIfc) {
     return state.open && state.generation === generation && selectedIfc === state.selectedIfc;
@@ -369,21 +473,56 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     const key = currentIdentity();
     return key && state.mappings.find(item => item.model_key === key.modelKey && item.ifc_global_id === key.globalId);
   }
+  function mappingForElement(element) {
+    const id = identity(element);
+    return id && state.mappings.find(item => item.model_key === id.modelKey && item.ifc_global_id === id.globalId);
+  }
+  function mappingStatus(mapping) {
+    if (!state.mappingApiAvailable) return 'UNAVAILABLE';
+    return String(mapping?.mapping_status || 'UNMAPPED').toUpperCase();
+  }
+  function mappingStatusLabel(status) {
+    return ({ UNMAPPED: 'Not mapped', PROVISIONAL: 'Provisional', CONFIRMED: 'Confirmed', UNAVAILABLE: 'Status unavailable' })[status] || status;
+  }
+  function linkedIfcLabel(mapping) {
+    if (!mapping) return '';
+    const index = state.indexes.get(mapping.model_key);
+    const element = index?.elements.find(item => item.identity.globalId === mapping.ifc_global_id);
+    const tag = element?.tag || element?.objectType || mapping.ifc_global_id?.slice(-6) || 'not available';
+    return `Linked IFC: ${element ? displayIfcName(element) : mapping.model_key} — Tag ${tag}`;
+  }
+  async function refreshMappingCache() {
+    try {
+      const mappings = await getMappings();
+      state.mappings = mappings;
+      state.mappingApiAvailable = true;
+      return true;
+    } catch (error) {
+      state.mappings = [];
+      state.mappingApiAvailable = false;
+      setMessage(`Mapping status unavailable: ${error.message}`, 'error');
+      return false;
+    }
+  }
   function renderSelected() {
     const item = state.selectedIfc;
     const id = currentIdentity();
     if (!item || !id) {
-      selectionIndicator.textContent = 'No IFC element selected';
       reviewIfc.textContent = 'Select an IFC element.';
       return;
     }
-    selectionIndicator.textContent = `Selected: ${displayIfcName(item)}`;
     reviewIfc.replaceChildren();
     appendLine(reviewIfc, 'review-label', 'IFC element');
     appendLine(reviewIfc, 'review-name', displayIfcName(item));
-    appendLine(reviewIfc, 'review-meta', `Model: ${id.modelKey}`);
-    appendLine(reviewIfc, 'review-meta', `Mapping status: ${state.mappingApiAvailable ? (mappingForCurrent()?.mapping_status || 'Not mapped') : 'Mapping Status Unavailable'}`);
-    appendLine(reviewIfc, 'review-meta', `Tag: ${value(item.tag || item.objectType || id.globalId.slice(-6))}`);
+    const metadata = document.createElement('span'); metadata.className = 'review-summary-fields';
+    for (const text of [
+      `Type: ${value(item.ifcType)}`,
+      `Tag: ${value(item.tag || item.objectType || id.globalId.slice(-6))}`,
+      `Room: ${value(item.room?.name, 'Unknown')}`,
+      `Model: ${id.modelKey}`,
+      `Status: ${mappingStatusLabel(mappingStatus(mappingForCurrent()))}`
+    ]) appendLine(metadata, 'review-meta', text);
+    reviewIfc.appendChild(metadata);
   }
   function renderBatchQueue() {
     let queue = detailsPane.querySelector('.workspace-batch-queue');
@@ -391,10 +530,11 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     queue.replaceChildren();
     if (state.mode !== 'batch') { queue.hidden = true; return; }
     queue.hidden = false;
-    const heading = document.createElement('h3'); heading.textContent = 'Selection Summary'; queue.appendChild(heading);
+    const progressState = getBatchProgress(state.batch);
+    const heading = document.createElement('h3'); heading.textContent = 'Batch mapping queue'; queue.appendChild(heading);
     const progress = document.createElement('p');
     progress.className = 'workspace-queue-progress';
-    progress.textContent = `${state.batch.filter(entry => entry.asset).length} of ${state.batch.length} assigned`;
+    progress.textContent = `${progressState.assigned} of ${progressState.total} assigned · ${progressState.pending} pending${progressState.conflicts ? ` · ${progressState.conflicts} conflict${progressState.conflicts === 1 ? '' : 's'}` : ''}`;
     queue.appendChild(progress);
     for (const [index, entry] of state.batch.entries()) {
       const row = document.createElement('button'); row.type = 'button'; row.className = 'workspace-batch-item';
@@ -402,13 +542,34 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
       const id = identity(entry.element);
       const identifier = entry.element.tag || entry.element.objectType || id?.globalId?.slice(-6) || 'No identifier';
       const existing = state.mappings.find(mapping => mapping.model_key === id?.modelKey && mapping.ifc_global_id === id?.globalId);
-      const status = entry.result?.status || (entry.asset ? 'Assigned' : existing ? 'Already Mapped' : entry.key === state.activeBatchKey ? 'Active' : 'Pending');
+      const status = entry.result?.status || (entry.asset ? 'Assigned' : existing ? 'Already Mapped' : entry.key === state.activeBatchKey ? 'Active / Pending' : 'Pending');
       row.textContent = `${index + 1}. ${displayIfcName(entry.element)} · ${id?.modelKey || 'Unknown'} · ${identifier} — ${status}${entry.asset ? `: ${value(entry.asset.name)}` : ''}`;
-      row.addEventListener('click', () => { state.activeBatchKey = entry.key; state.selectedIfc = entry.element; state.selectedAsset = entry.asset || null; renderSelected(); renderBatchQueue(); renderAssets(); assignButton.disabled = !state.selectedAsset; });
+      row.addEventListener('click', () => activateBatchEntry(entry, { focus: true }));
       const removeButton = document.createElement('button'); removeButton.type = 'button'; removeButton.className = 'workspace-queue-remove'; removeButton.textContent = 'Remove';
       removeButton.addEventListener('click', event => { event.stopPropagation(); if (window.confirm(`Remove ${displayIfcName(entry.element)} from this batch?`)) removeBatch(entry.key); });
       const line = document.createElement('div'); line.append(row, removeButton); queue.appendChild(line);
     }
+    const review = document.createElement('details'); review.className = 'workspace-batch-review'; review.open = state.batchReviewOpen;
+    const summary = document.createElement('summary'); summary.textContent = 'Review Batch Mappings';
+    summary.addEventListener('click', () => { window.setTimeout(() => { state.batchReviewOpen = review.open; }, 0); });
+    const table = document.createElement('table'); table.className = 'workspace-batch-review-table';
+    const head = document.createElement('thead'); head.innerHTML = '<tr><th>IFC element</th><th>Tag</th><th>itemit asset</th><th>Serial</th><th>Status</th></tr>';
+    const body = document.createElement('tbody');
+    for (const entry of state.batch) {
+      const row = document.createElement('tr');
+      const id = identity(entry.element);
+      const status = entry.result?.status || (entry.asset ? 'Ready' : 'Pending');
+      for (const text of [
+        displayIfcName(entry.element),
+        entry.element.tag || entry.element.objectType || id?.globalId?.slice(-6) || 'Not available',
+        value(entry.asset?.name, '—'),
+        value(entry.asset?.serial, '—'),
+        status
+      ]) { const cell = document.createElement('td'); cell.textContent = text; row.appendChild(cell); }
+      row.addEventListener('click', () => activateBatchEntry(entry, { focus: true }));
+      body.appendChild(row);
+    }
+    table.append(head, body); review.append(summary, table); queue.appendChild(review);
   }
   function renderReview() {
     if (state.mode !== 'batch') return;
@@ -429,19 +590,20 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   function renderIfcList() {
     ifcList.replaceChildren();
     const index = state.indexes.get(ifcModel.value);
-    if (!index) { ifcList.textContent = 'Loading IFC elements…'; return; }
+    if (!index) { ifcResultCount.textContent = ''; ifcList.textContent = 'Loading IFC elements…'; return; }
     const query = ifcSearch.value.trim().toLocaleLowerCase();
-    const matching = index.elements.filter(element => [element.name, element.normalizedName, element.ifcType, element.identity.globalId]
+    const matching = index.elements.filter(element => [element.name, element.normalizedName, element.ifcType, element.identity.globalId, element.tag, element.objectType]
       .filter(Boolean).some(field => String(field).toLocaleLowerCase().includes(query)));
-    const filtered = matching.filter(element => includesInIfcScope(element, ifcScope.value, state.mappings));
+    const filtered = matching.filter(element => {
+      if (!includesInIfcScope(element, ifcScope.value, state.mappings)) return false;
+      return !ifcStatus.value || mappingStatus(mappingForElement(element)) === ifcStatus.value;
+    });
+    ifcResultCount.textContent = `${filtered.length} IFC element${filtered.length === 1 ? '' : 's'}`;
     const elements = filtered.slice(0, state.ifcVisibleLimit);
-    const countNote = document.createElement('p');
-    countNote.className = 'workspace-list-note';
-    countNote.textContent = `${filtered.length} filtered IFC elements.`;
-    ifcList.appendChild(countNote);
     for (const element of elements) {
       const button = document.createElement('button');
       button.className = 'workspace-ifc-item';
+      button.dataset.ifcKey = batchKey(element);
       button.classList.toggle('selected', currentIdentity()?.globalId === element.identity.globalId && currentIdentity()?.modelKey === element.identity.modelKey);
       const content = document.createElement('span'); content.className = 'ifc-card-content';
       appendLine(content, 'list-row-title', displayIfcName(element));
@@ -449,21 +611,31 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
       appendLine(content, 'list-row-meta', element.ifcType);
       appendLine(content, 'list-row-meta', `Tag: ${identifier}`);
       button.appendChild(content);
-      const mapping = state.mappings.find(item => item.model_key === element.identity.modelKey && item.ifc_global_id === element.identity.globalId);
+      const mapping = mappingForElement(element);
+      const statusKey = mappingStatus(mapping);
       const status = document.createElement('span'); status.className = 'list-row-status';
-      status.textContent = state.mappingApiAvailable ? (mapping ? 'Mapped' : 'Not mapped') : 'Status unavailable';
+      status.classList.add(`mapping-status-${statusKey.toLocaleLowerCase()}`);
+      status.textContent = mappingStatusLabel(statusKey);
       button.appendChild(status);
       button.disabled = !element.identity.globalId;
-      button.addEventListener('click', () => {
-        void selectIfc(element);
-        void selectIfcInViewer(element);
+      button.addEventListener('click', async () => {
+        const resolved = await resolveIndexedElement(element);
+        if (!resolved) return;
+        await selectIfc(resolved);
+        if (state.mode === 'single') void focusActiveIfc(resolved);
+        else void selectIfcInViewer(viewerTarget(resolved));
       });
-      {
+      if (state.mode === 'batch') {
         const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(batchEntry(element));
         checkbox.setAttribute('aria-label', `Add ${displayIfcName(element)} to batch`);
         checkbox.className = 'ifc-batch-checkbox';
         checkbox.addEventListener('click', event => event.stopPropagation());
-        checkbox.addEventListener('change', () => { state.mode = 'batch'; checkbox.checked ? addBatch(element) : removeBatch(batchKey(element)); });
+        checkbox.addEventListener('change', async () => {
+          state.mode = 'batch';
+          const resolved = await resolveIndexedElement(element);
+          if (!resolved) { checkbox.checked = false; renderWorkspace(); return; }
+          checkbox.checked ? addBatch(resolved) : removeBatch(batchKey(resolved));
+        });
         button.prepend(checkbox);
       }
       ifcList.appendChild(button);
@@ -493,7 +665,20 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     if (!id) return element;
     try {
       const index = await ensureIndex(id.modelKey);
-      return index.elements.find(item => item.identity.globalId === id.globalId) || element;
+      const indexed = index.elements.find(item => item.identity.globalId === id.globalId) || element;
+      if (id.modelKey !== 'building') return indexed;
+      const roomIndexes = await Promise.all(modelCatalog
+        .filter(model => model.key !== 'building')
+        .map(model => ensureIndex(model.key)));
+      const canonical = resolveOverviewElementToRoom(indexed, roomIndexes);
+      if (!canonical) {
+        setMessage('This Building Overview element could not be resolved to exactly one room model. Mapping is blocked to avoid writing a building-level record.', 'error');
+        return null;
+      }
+      return {
+        ...canonical,
+        overviewSource: { modelKey: id.modelKey, globalId: id.globalId, sourceLocalId: indexed.sourceLocalId }
+      };
     } catch (error) {
       // Keep the stable identity usable for manual mapping, but do not invent
       // missing IFC metadata if the read-only index cannot be built.
@@ -530,22 +715,17 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
   async function ensureAssets() {
     if (!state.assets) state.assets = await getAssets({ limit: 500 });
     if (state.mappingApiAvailable) return;
-    try {
-      state.mappings = await getMappings();
-      state.mappingApiAvailable = true;
-    } catch (error) {
+    if (!await refreshMappingCache()) {
       // Inventory searching remains read-only and useful if an older API
       // process has not yet been restarted with Phase 2 mapping routes.
-      state.mappings = [];
-      state.mappingApiAvailable = false;
-      setMessage(`Inventory loaded, but mapping status is unavailable: ${error.message}`, 'error');
+      setMessage('Inventory loaded, but mapping status is unavailable.', 'error');
     }
     populateFilters();
   }
   function candidateStatus(asset) {
     if (!state.mappingApiAvailable) return 'Mapping Status Unavailable';
     const statuses = state.mappings.filter(mapping => mapping.itemit_item_id === asset.id).map(mapping => mapping.mapping_status);
-    return statuses.length ? [...new Set(statuses)].join(', ') : 'Unmapped';
+    return statuses.length ? [...new Set(statuses)].map(status => mappingStatusLabel(String(status).toUpperCase())).join(', ') : 'Not mapped';
   }
   function filteredAssets() {
     const query = assetQuery.value.trim().toLocaleLowerCase();
@@ -553,7 +733,12 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
       if (query && ![asset.name, asset.serial].some(field => String(field || '').toLocaleLowerCase().includes(query))) return false;
       if (assetLocation.value && locationKey(asset.current_location) !== assetLocation.value) return false;
       if (assetCollection.value && !collectionValues(asset).includes(assetCollection.value)) return false;
-      if (assetStatus.value && candidateStatus(asset) !== assetStatus.value) return false;
+      if (assetStatus.value) {
+        const mappedStatuses = state.mappings
+          .filter(mapping => mapping.itemit_item_id === asset.id)
+          .map(mapping => String(mapping.mapping_status).toUpperCase());
+        if (assetStatus.value === 'UNMAPPED' ? mappedStatuses.length > 0 : !mappedStatuses.includes(assetStatus.value)) return false;
+      }
       return true;
     });
   }
@@ -608,10 +793,20 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
       const button = document.createElement('button');
       button.className = 'workspace-asset-item';
       button.classList.toggle('selected', state.selectedAsset?.id === asset.id);
+      const reservedBy = state.mode === 'batch' ? findBatchAssetConflict(state.batch, asset.id, state.activeBatchKey) : null;
+      const ownedByActiveEntry = state.mode === 'batch' && state.batch.find(entry => entry.key === state.activeBatchKey)?.asset?.id === asset.id;
+      const persistedMapping = state.mappings.find(mapping => mapping.itemit_item_id === asset.id);
       appendLine(button, 'list-row-title', value(asset.name));
-      appendLine(button, 'list-row-meta', `Serial: ${value(asset.serial)}`);
-      appendLine(button, 'list-row-meta', `Location: ${value(asset.current_location)}`);
-      appendLine(button, 'list-row-status', candidateStatus(asset));
+      const metadata = document.createElement('span'); metadata.className = 'asset-card-metadata';
+      appendLine(metadata, 'list-row-meta asset-card-serial', `Serial: ${value(asset.serial)}`);
+      appendLine(metadata, 'list-row-meta asset-card-location', `Location: ${value(asset.current_location)}`);
+      button.appendChild(metadata);
+      const assetStatusNode = appendLine(button, 'list-row-status', reservedBy ? batchReservationLabel(reservedBy) : ownedByActiveEntry ? 'Currently assigned' : candidateStatus(asset));
+      if (persistedMapping) assetStatusNode.classList.add(`mapping-status-${mappingStatus(persistedMapping).toLocaleLowerCase()}`);
+      if (persistedMapping) appendLine(button, 'list-row-meta linked-ifc', linkedIfcLabel(persistedMapping));
+      button.classList.toggle('batch-conflict', Boolean(reservedBy));
+      button.disabled = Boolean(reservedBy);
+      if (reservedBy) button.title = `Already proposed for ${displayIfcName(reservedBy.element)} (${batchReservationLabel(reservedBy)}).`;
       button.addEventListener('click', () => void selectAsset(asset.id));
       assetList.appendChild(button);
     }
@@ -623,12 +818,20 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     try {
       const asset = await getAssetById(itemId);
       if (!active(generation)) return;
-      state.selectedAsset = asset;
-      candidate.replaceChildren();
-      appendLine(candidate, 'review-label', 'itemit asset');
-      for (const [label, field] of [['Name', asset.name], ['Serial', asset.serial], ['Location', asset.current_location], ['Collection', collectionValues(asset).join(', ')], ['Mapping status', candidateStatus(asset)], ['UUID', asset.id]]) {
-        const line = document.createElement('p'); line.textContent = `${label}: ${value(field)}`; candidate.appendChild(line);
+      const reservedBy = state.mode === 'batch' ? findBatchAssetConflict(state.batch, asset.id, state.activeBatchKey) : null;
+      if (reservedBy) {
+        setMessage(`${batchReservationLabel(reservedBy)}.`, 'error');
+        return;
       }
+      const persistedMapping = state.mappings.find(mapping => mapping.itemit_item_id === asset.id);
+      const current = currentIdentity();
+      if (persistedMapping && (!current || persistedMapping.model_key !== current.modelKey || persistedMapping.ifc_global_id !== current.globalId)) {
+        candidate.textContent = `${mappingStatusLabel(mappingStatus(persistedMapping))}. ${linkedIfcLabel(persistedMapping)}.`;
+        setMessage('This itemit asset already has a persisted mapping. Use the explicit replace workflow on its linked IFC element.', 'error');
+        return;
+      }
+      state.selectedAsset = asset;
+      renderCandidate(asset);
       save.disabled = !currentIdentity();
       assignButton.disabled = state.mode !== 'batch' || !state.activeBatchKey;
       renderAssets();
@@ -656,6 +859,7 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
       ];
       state.selectedAsset = await getAssetById(mapping.itemit_item_id);
       if (!active(generation, selectedIfc)) return;
+      renderSelected();
       await selectAsset(state.selectedAsset.id);
       setMessage(`Existing mapping: ${mapping.mapping_status} via ${mapping.mapping_method}.`, 'success');
       remove.disabled = false;
@@ -673,6 +877,13 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     const generation = state.generation;
     state.selectedIfc = element;
     const selectedIdentity = identity(element);
+    if (selectedIdentity?.modelKey === 'building') {
+      state.selectedIfc = null;
+      state.selectedAsset = null;
+      renderSelected();
+      setMessage('Building Overview is view-only for mapping. Select an element that resolves to a room model.', 'error');
+      return;
+    }
     if (selectedIdentity) {
       ifcModel.value = selectedIdentity.modelKey;
       dropdowns.model.sync();
@@ -710,43 +921,70 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     try {
       if (existing) await updateMapping({ modelKey: id.modelKey, globalId: id.globalId, changes: { itemit_item_id: state.selectedAsset.id, mapping_status: 'PROVISIONAL', mapping_method: 'MANUAL' } });
       else await createMapping({ model_key: id.modelKey, ifc_global_id: id.globalId, itemit_item_id: state.selectedAsset.id, mapping_status: 'PROVISIONAL', mapping_method: 'MANUAL' });
-      state.mappings = await getMappings();
+      const verified = await refreshMappingCache();
       renderAssets();
-      await refreshCurrentMapping();
-      setMessage('Mapping saved and revalidated.', 'success');
-      remove.disabled = false;
+      renderIfcList();
+      if (verified) {
+        await refreshCurrentMapping();
+        setMessage('Mapping saved and revalidated.', 'success');
+        remove.disabled = false;
+      } else {
+        setMessage('Mapping write completed, but persisted status could not be verified. Mapping actions remain blocked until status is available.', 'error');
+      }
     } catch (error) { setMessage(error.message, 'error'); }
     finally { save.disabled = false; }
   }
   async function saveBatchMappings() {
     if (!state.mappingApiAvailable) { setMessage('Batch writes are disabled because mapping status could not be verified.', 'error'); return; }
-    const pending = state.batch.filter(entry => entry.asset && entry.result?.status !== 'Success');
-    if (!pending.length) return;
+    const draftErrors = validateBatchProposals(state.batch);
+    if (draftErrors.length) {
+      setMessage(draftErrors.join(' '), 'error');
+      renderBatchQueue(); renderAssets();
+      return;
+    }
+    const pending = state.batch.filter(entry => entry.asset && (!entry.result || entry.result.status === 'Failed'));
+    if (!pending.length) {
+      setMessage('No eligible proposed mappings are ready to submit. Correct any conflicts before retrying.', 'error');
+      return;
+    }
     if (!window.confirm(`Confirm ${pending.length} independent mapping write${pending.length === 1 ? '' : 's'}? Successful writes cannot be rolled back as a batch.`)) return;
     save.disabled = true;
+    const written = [];
     for (const entry of pending) {
       const id = identity(entry.element);
       try {
         const existing = state.mappings.find(row => row.model_key === id.modelKey && row.ifc_global_id === id.globalId);
         if (existing) await updateMapping({ modelKey: id.modelKey, globalId: id.globalId, changes: { itemit_item_id: entry.asset.id, mapping_status: 'PROVISIONAL', mapping_method: 'MANUAL' } });
         else await createMapping({ model_key: id.modelKey, ifc_global_id: id.globalId, itemit_item_id: entry.asset.id, mapping_status: 'PROVISIONAL', mapping_method: 'MANUAL' });
-        entry.result = { status: 'Success' };
+        entry.result = { status: 'Awaiting verification' };
+        written.push(entry);
       } catch (error) {
         entry.result = { status: error.status === 409 ? 'Conflict' : 'Failed', message: error.message };
       }
     }
-    try { state.mappings = await getMappings(); } catch { /* preserve per-pair results */ }
+    const verified = await refreshMappingCache();
+    if (verified) {
+      for (const entry of written) {
+        const id = identity(entry.element);
+        const persisted = state.mappings.find(mapping => mapping.model_key === id.modelKey && mapping.ifc_global_id === id.globalId && mapping.itemit_item_id === entry.asset.id);
+        entry.result = persisted ? { status: 'Success', mappingStatus: persisted.mapping_status } : { status: 'Unverified' };
+      }
+    } else {
+      for (const entry of written) entry.result = { status: 'Unverified' };
+    }
     save.disabled = false;
-    renderReview(); renderBatchQueue(); renderAssets();
-    setMessage('Batch submission finished. Failed or conflicting pairs remain available for correction.', 'success');
+    renderReview(); renderBatchQueue(); renderAssets(); renderIfcList();
+    setMessage(verified ? 'Batch submission finished. Failed or conflicting pairs remain available for correction.' : 'Batch writes completed, but persisted statuses could not be verified. Unverified pairs were not marked as saved.', verified ? 'success' : 'error');
   }
   async function removeMapping() {
     const id = currentIdentity();
     if (!id || !window.confirm('Remove this IFC-to-itemit mapping?')) return;
     try {
-      await deleteMapping(id); state.mappings = await getMappings(); state.selectedAsset = null;
+      await deleteMapping(id);
+      const verified = await refreshMappingCache();
+      state.selectedAsset = null;
       candidate.textContent = 'Mapping removed. Select an asset to create a new mapping.'; remove.disabled = true; save.disabled = true;
-      renderAssets(); setMessage('Mapping removed.', 'success');
+      renderSelected(); renderAssets(); renderIfcList(); setMessage(verified ? 'Mapping removed.' : 'Mapping removal completed, but status could not be verified.', verified ? 'success' : 'error');
     } catch (error) { setMessage(error.message, 'error'); }
   }
   async function activate(element = null) {
@@ -756,7 +994,10 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     }
     state.open = true;
     root.classList.remove('hidden');
-    if (element) await selectIfc(await resolveIndexedElement(element)); else await loadIfcModel();
+    if (element) {
+      const resolved = await resolveIndexedElement(element);
+      if (resolved) await selectIfc(resolved);
+    } else await loadIfcModel();
     renderWorkspace();
   }
   function deactivate() {
@@ -792,12 +1033,13 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     candidate.textContent = 'Choose an IFC element from the selected model.';
     save.disabled = true;
     remove.disabled = true;
-    setMessage('Choose an IFC element from the selected model before creating a mapping.');
+    setMessage('');
     void loadIfcModel();
     renderBatchQueue();
     renderWorkspace();
   });
   ifcScope.addEventListener('change', () => { state.ifcVisibleLimit = 150; renderIfcList(); });
+  ifcStatus.addEventListener('change', () => { state.ifcVisibleLimit = 150; renderIfcList(); });
   assetQuery.addEventListener('input', () => { state.page = 0; renderAssets(); });
   assetLocation.addEventListener('change', () => { state.locationFilterSource = 'user'; state.page = 0; renderAssets(); });
   [assetCollection, assetStatus].forEach(control => control.addEventListener('change', () => { state.page = 0; renderAssets(); }));
@@ -819,7 +1061,10 @@ export function setupMappingWorkspace({ getModel, ensureModel, selectIfcInViewer
     clearSelection,
     setSelection: element => {
       if (!state.open) return;
-      void resolveIndexedElement(element).then(indexed => selectIfc(indexed));
+      void resolveIndexedElement(element).then(indexed => {
+        if (indexed) return selectIfc(indexed);
+        clearSelection();
+      });
     }
   };
 }

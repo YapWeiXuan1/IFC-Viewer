@@ -1,5 +1,5 @@
 :root {
-  --app-header-height: 70px;
+  --app-header-height: 0px;
   font-family: Inter, Segoe UI, Arial, sans-serif;
   color: #e9f0f9;
   background: #091321;
@@ -8,6 +8,18 @@
 
 * {
   box-sizing: border-box
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 html,
@@ -1152,6 +1164,7 @@ body.mapping-resizing * {
   overflow-y: auto;
   overflow-x: hidden;
 }
+
 .mapping-workspace:not(.hidden) .workspace-assets-pane {
   min-height: 0;
 }
@@ -1394,9 +1407,10 @@ body.mapping-resizing * {
 }
 .mapping-workspace:not(.hidden) .workspace-review {
   grid-row: 1;
-  max-height: 152px;
+  max-height: min(30vh, 210px);
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .mapping-workspace:not(.hidden) .workspace-details-pane > .workspace-assets-pane {
   grid-row: 2;
@@ -1450,4 +1464,297 @@ body.mapping-resizing * {
 .mapping-workspace:not(.hidden) .workspace-assets-pane > .workspace-scroll::-webkit-scrollbar,
 .mapping-workspace:not(.hidden) .workspace-review::-webkit-scrollbar,
 .mapping-workspace:not(.hidden) .workspace-batch-queue::-webkit-scrollbar { width: 0; height: 0; }
+
+/* Batch assignment stays compact so the manual itemit results remain primary. */
+.mapping-workspace:not(.hidden) .workspace-batch-queue {
+  padding: 10px;
+  background: #10253c;
+  border: 1px solid #294b6b;
+  border-radius: 10px;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-queue h3 { margin-bottom: 3px; }
+.mapping-workspace:not(.hidden) .workspace-queue-progress { margin-bottom: 8px; }
+.mapping-workspace:not(.hidden) .workspace-queue-remove {
+  min-height: 27px;
+  padding: 4px 7px;
+  font-size: 9px;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-item.selected {
+  border-color: #258df3;
+  border-left: 3px solid #54b7ff;
+  background: #173d60;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-review {
+  margin-top: 8px;
+  overflow-x: auto;
+  color: #a9c2d9;
+  font-size: 10px;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-review summary {
+  cursor: pointer;
+  color: #8fceff;
+  font-weight: 650;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-review-table {
+  width: 100%;
+  margin-top: 7px;
+  border-collapse: collapse;
+  text-align: left;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-review-table th,
+.mapping-workspace:not(.hidden) .workspace-batch-review-table td {
+  padding: 5px 4px;
+  vertical-align: top;
+  border-bottom: 1px solid #26435e;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-review-table th { color: #83b7df; font-weight: 600; }
+.mapping-workspace:not(.hidden) .workspace-batch-review-table tbody tr { cursor: pointer; }
+.mapping-workspace:not(.hidden) .workspace-batch-review-table tbody tr:hover { background: #173653; }
+.mapping-workspace:not(.hidden) .workspace-asset-item.batch-conflict {
+  opacity: .62;
+  cursor: not-allowed;
+}
+.mapping-workspace:not(.hidden) .workspace-asset-item.batch-conflict .list-row-status { color: #f6bc7b; }
+.mapping-workspace:not(.hidden) .mapping-status-provisional { color: #ffd37c; background: #4d3713; border-color: #8a6724; }
+.mapping-workspace:not(.hidden) .mapping-status-confirmed { color: #8ce6b8; background: #123d31; border-color: #24785a; }
+.mapping-workspace:not(.hidden) .mapping-status-unavailable { color: #d2b6ff; background: #35224e; border-color: #65468e; }
+.mapping-workspace:not(.hidden) .linked-ifc { color: #8fc2e7; white-space: normal; }
+
+/* Inventory cards: separate the record identity, fields, state, and relationship. */
+.mapping-workspace:not(.hidden) .workspace-asset-item {
+  gap: 6px;
+  padding: 11px 12px;
+  border: 1px solid #1f3954;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+}
+.mapping-workspace:not(.hidden) .workspace-asset-item .list-row-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.mapping-workspace:not(.hidden) .asset-card-metadata {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 4px 10px;
+  min-width: 0;
+}
+.mapping-workspace:not(.hidden) .asset-card-metadata .list-row-meta {
+  min-width: 0;
+  overflow: hidden;
+  color: #a9c1d7;
+  font-size: 9px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mapping-workspace:not(.hidden) .workspace-asset-item .list-row-status {
+  justify-self: start;
+  width: fit-content;
+  padding: 3px 7px;
+  color: #79dec8;
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.2;
+  background: #0d3437;
+  border: 1px solid #176056;
+  border-radius: 999px;
+}
+.mapping-workspace:not(.hidden) .workspace-asset-item .linked-ifc {
+  padding-top: 5px;
+  color: #8fc2e7;
+  font-size: 9px;
+  line-height: 1.35;
+  border-top: 1px solid #203a55;
+}
+.mapping-workspace:not(.hidden) .workspace-asset-item.selected {
+  border-color: #2c77ad;
+  border-left-color: #56b4ff;
+  background: #183a5a;
+}
+.mapping-workspace:not(.hidden) .workspace-asset-item .mapping-status-provisional,
+.mapping-workspace:not(.hidden) .workspace-asset-item .mapping-status-confirmed,
+.mapping-workspace:not(.hidden) .workspace-asset-item .mapping-status-unavailable { border-width: 1px; }
+
+/* Mapping summary uses the full panel width; result lists remain the scroll region. */
+.mapping-workspace:not(.hidden) .workspace-review {
+  max-height: none;
+  overflow: visible;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 0;
+  border-radius: 0;
+}
+.mapping-workspace:not(.hidden) .workspace-review-records {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+}
+.mapping-workspace:not(.hidden) .workspace-review-records .workspace-card {
+  display: grid;
+  min-height: 0;
+  padding: 8px 10px;
+  border-color: #254563;
+}
+.mapping-workspace:not(.hidden) .review-name { margin-bottom: 6px; }
+.mapping-workspace:not(.hidden) .review-summary-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 12px;
+}
+.mapping-workspace:not(.hidden) .review-summary-fields .review-meta {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mapping-workspace:not(.hidden) .review-linked-ifc {
+  display: block;
+  margin-top: 4px;
+  color: #8fc2e7;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+@media (max-width: 360px) {
+  .mapping-workspace:not(.hidden) .review-summary-fields { grid-template-columns: 1fr; }
+}
+
+/* Inline filters preserve the result list instead of floating over it. */
+.mapping-workspace:not(.hidden) .workspace-filter-section {
+  flex: 0 0 auto;
+  margin: 0 0 10px;
+  padding: 12px;
+  overflow: visible;
+  background: #10253c;
+  border: 1px solid #294b6b;
+  border-radius: 10px;
+}
+.mapping-workspace:not(.hidden) .workspace-filter-section[hidden] { display: none; }
+.mapping-workspace:not(.hidden) .workspace-filter-section .workspace-filter-popover-head {
+  margin-bottom: 12px;
+}
+.mapping-workspace:not(.hidden) .workspace-filter-section .workspace-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+.mapping-workspace:not(.hidden) .workspace-filter-section .workspace-filters label,
+.mapping-workspace:not(.hidden) .workspace-filter-section .workspace-filters label:last-child {
+  display: grid;
+  grid-column: auto;
+  gap: 6px;
+  color: #bcd0e5;
+  font-size: 11px;
+}
+.mapping-workspace:not(.hidden) .workspace-filter-section .workspace-combobox-trigger {
+  min-height: 42px;
+  margin: 0;
+  border-radius: 8px;
+}
+.mapping-workspace:not(.hidden) .workspace-filter-apply {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 14px;
+  font-size: 11px;
+}
+@media (min-width: 1051px) and (max-height: 850px) {
+  .mapping-workspace:not(.hidden) .workspace-filter-section { padding: 10px; }
+  .mapping-workspace:not(.hidden) .workspace-filter-section .workspace-filters { gap: 10px; }
+  .mapping-workspace:not(.hidden) .workspace-filter-section .workspace-combobox-trigger { min-height: 40px; }
+}
+
+@media (max-width: 360px) {
+  .mapping-workspace:not(.hidden) .asset-card-metadata { grid-template-columns: 1fr; gap: 3px; }
+}
+
+@media (min-width: 1051px) and (max-height: 850px) {
+  .mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-batch-queue {
+    max-height: 166px;
+    margin-bottom: 8px;
+    padding: 8px;
+  }
+  .mapping-workspace:not(.hidden) .workspace-batch-review-table th,
+  .mapping-workspace:not(.hidden) .workspace-batch-review-table td { padding: 4px 3px; }
+}
+
+/* Phase 4Q final IFC panel layout overrides. */
+.mapping-workspace:not(.hidden) .workspace-ifc-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 10px;
+}
+.mapping-workspace:not(.hidden) .workspace-ifc-filters .workspace-field-label {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+.mapping-workspace:not(.hidden) .workspace-ifc-filters .asset-search { margin: 0; }
+.mapping-workspace:not(.hidden) .workspace-ifc-pane > .workspace-count {
+  margin: 0 0 6px;
+  color: #8fb0cf;
+  font-size: 12px;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 2px 0 10px;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-controls .workspace-mode-label,
+.mapping-workspace:not(.hidden) .workspace-batch-controls button:nth-child(4),
+.mapping-workspace:not(.hidden) .workspace-batch-controls button:nth-child(5),
+.mapping-workspace:not(.hidden) .workspace-batch-controls > span:last-child { grid-column: 1 / -1; }
+.mapping-workspace:not(.hidden) .workspace-batch-controls .workspace-mode-label {
+  color: #bcd0e5;
+  font-size: 13px;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-controls button {
+  min-height: 38px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.mapping-workspace:not(.hidden) .workspace-batch-controls > span:last-child:empty { display: none; }
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-meta:last-child { color: #a7c6df; }
+.mapping-workspace:not(.hidden) .workspace-ifc-item.selected { box-shadow: inset 3px 0 0 #56b4ff; }
+.mapping-workspace:not(.hidden)[data-mapping-mode="single"] .workspace-ifc-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* Keep the Dashboard layout from origin/main; Asset Mapping is an opt-in view. */
+#app:not(.mapping-mode) .workspace {
+  grid-template-columns: 240px minmax(0, 1fr) 305px;
+  height: 100%;
+}
+#app:not(.mapping-mode) .sidebar {
+  position: static;
+  width: auto;
+  transform: none;
+  box-shadow: none;
+}
+.mapping-workspace:not(.hidden) .workspace-return {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 16px;
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+@media (max-width: 340px) {
+  .mapping-workspace:not(.hidden) .workspace-ifc-filters { grid-template-columns: 1fr; }
+}
+@media (min-width: 1051px) and (max-height: 850px) {
+  .mapping-workspace:not(.hidden) .workspace-ifc-filters { gap: 8px; margin-bottom: 8px; }
+  .mapping-workspace:not(.hidden) .workspace-batch-controls { gap: 6px; margin-bottom: 8px; }
+  .mapping-workspace:not(.hidden) .workspace-batch-controls button { min-height: 32px; font-size: 10px; }
+  .mapping-workspace:not(.hidden) .workspace-ifc-pane > .workspace-count { font-size: 10px; }
+}
 
