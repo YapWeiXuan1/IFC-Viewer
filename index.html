@@ -9,22 +9,30 @@
 
 <body>
   <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">◈</div>
+        <div><strong>BIM STUDIO</strong></div>
+      </div>
+      <div class="top-right sr-only" aria-live="polite"><span id="status-dot" class="dot"></span><span id="status">Initializing viewer…</span>
+      </div>
+    </header>
     <div class="workspace">
       <aside class="sidebar">
-        <div class="sidebar-head"><span class="eyebrow">WORKSPACE</span>
-          <h2>3D Model Library</h2>
-          <p>Five IFC models · local workspace</p>
+        <div class="sidebar-head">
+          <h2>Models</h2>
         </div>
-        <div class="nav-title">MODEL NAVIGATION <span>05</span></div>
+        <div class="nav-title">Available models</div>
         <div id="model-list" class="model-list"></div>
-        <div class="sidebar-footer"><span class="eyebrow">QUICK ACTIONS</span><button id="nav-mapping" class="outline-btn">Asset Mapping</button><button id="preload-btn" class="outline-btn">↻ &nbsp; Preload other models</button></div>
+        <div class="sidebar-footer"><button id="fit-btn" class="outline-btn">⌗
+            &nbsp; Fit camera to model</button><button id="nav-mapping" class="outline-btn">Asset Mapping</button><button id="preload-btn" class="outline-btn">↻ &nbsp; Preload other
+            models</button><button id="export-index-btn" class="outline-btn">Export IFC element index</button><small id="index-summary" class="index-summary">No IFC index exported</small></div>
       </aside>
       <section class="center">
         <div class="view-toolbar">
-          <div><span class="eyebrow">ACTIVE VIEW</span>
-            <h1 id="active-title">Building Overview</h1>
+          <div><h1 id="active-title">Building Overview</h1>
           </div>
-          <div class="view-actions"><span id="active-state" class="state-pill">Waiting</span><button id="reload-btn"
+          <div class="view-actions"><span id="active-state" class="state-pill sr-only">Waiting</span><button id="reload-btn"
               class="toolbar-btn" title="Re-render">↻</button></div>
         </div>
         <div class="viewer-shell">
@@ -38,12 +46,10 @@
             <button class="camera-view-btn" data-view="back" type="button">Back</button>
             <button class="camera-view-btn active" data-view="iso" type="button">3D</button>
           </div>
-          <div class="viewer-badge">◉ &nbsp; INTERACTIVE BIM VIEWER</div>
           <div class="viewer-hint">Left drag: orbit &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Right drag: pan</div>
           <div id="viewer-overlay" class="viewer-overlay">Initializing 3D engine…</div>
         </div>
-        <div class="bottom-strip"><span>◈ &nbsp; Local Fragments engine</span><span id="cache-info">0 / 5 models
-            cached</span><span id="switch-time">Switch: —</span></div>
+        <div class="bottom-strip sr-only"><span id="cache-info">0 / 5 models cached</span><span id="switch-time">Switch: —</span></div>
       </section>
       <aside class="right-panel">
         <div class="tabbar"><button id="tab-properties" class="tab active">ELEMENT INFO</button><button id="tab-converter" class="tab">IFC CONVERTER</button></div>

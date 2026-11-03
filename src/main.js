@@ -231,7 +231,6 @@ function renderControls() {
     button.className = 'model-button'; button.id = `nav-${m.key}`;
     button.innerHTML = `<span class="model-glyph">${m.glyph}</span><span><span class="model-name">${m.name}</span><span class="model-sub" style="display:block">Not loaded</span></span>`;
     button.onclick = () => {
-      byId('app').classList.remove('drawer-open');
       void switchModel(m.key);
     };
     list.appendChild(button);
@@ -246,11 +245,9 @@ async function start() {
   renderControls();
   byId('tab-properties').onclick = () => setActiveTab('properties');
   byId('tab-converter').onclick = () => setActiveTab('converter');
-  byId('nav-dashboard').onclick = () => setAppView('dashboard');
   byId('nav-mapping').onclick = () => setAppView('mapping');
   byId('preload-btn').onclick = () => void preloadOthers();
   byId('export-index-btn').onclick = () => void exportActiveModelIndex();
-  byId('model-drawer-toggle').onclick = () => byId('app').classList.toggle('drawer-open');
   byId('reload-btn').onclick = () => void viewer?.fragments.core.update(true);
   byId('fit-btn').onclick = () => void frameModel(cache.get(activeKey));
   try {
