@@ -4,7 +4,6 @@ import { createIfcViewer } from './viewer.js';
 import { ElementInspector } from "./element-inspector.js";
 import { setupModelPicker } from "./model-picker.js";
 import { setupMappingWorkspace } from './mapping-workspace.js';
-import { getAssetById, getMappingStatus } from './services/fobeApi.js';
 import { createCameraViews } from './camera-views.js';
 
 const BASE_URL = import.meta.env.BASE_URL;
@@ -21,7 +20,6 @@ const cache = new Map();
 const pending = new Map();
 const conversions = new Map();
 const fragmentFallbackModels = new Set();
-const dashboardIndexes = new Map();
 let viewer;
 let activeKey = null;
 let cameraViews;
@@ -30,7 +28,6 @@ let conversionBusy = false;
 let inspector;
 let picker;
 let mappingWorkspace;
-let elementInfoGeneration = 0;
 
 function refreshViewerLayout() {
   requestAnimationFrame(() => {
@@ -86,7 +83,6 @@ function setActiveTab(name) {
 function setAppView(view) {
   const mapping = view === 'mapping';
   byId('app').classList.toggle('mapping-mode', mapping);
-  byId('nav-dashboard').classList.toggle('active', !mapping);
   byId('nav-mapping').classList.toggle('active', mapping);
   if (mapping) void mappingWorkspace?.activate(inspector?.current);
   else mappingWorkspace?.deactivate();
@@ -226,6 +222,7 @@ async function start() {
   byId('tab-properties').onclick = () => setActiveTab('properties');
   byId('tab-converter').onclick = () => setActiveTab('converter');
   byId('nav-mapping').onclick = () => setAppView('mapping');
+  byId('mapping-back').onclick = () => setAppView('dashboard');
   byId('preload-btn').onclick = () => void preloadOthers();
   byId('reload-btn').onclick = () => void viewer?.fragments.core.update(true);
   try {
@@ -261,7 +258,6 @@ async function start() {
           return;
         }
 
-        const infoGeneration = ++elementInfoGeneration;
         panel.replaceChildren();
 
         const heading = document.createElement("h3");
@@ -303,36 +299,6 @@ async function start() {
         mappingContainer.appendChild(openWorkspace);
         panel.appendChild(mappingContainer);
         mappingWorkspace?.setSelection(element);
-        // Dashboard renders confirmed mapping data only; manual search and
-        // mapping management live exclusively in the Asset Mapping view.
-        void (async () => {
-          let indexed = element;
-          try {
-            const model = cache.get(element.modelKey);
-            if (model) {
-              const index = dashboardIndexes.get(element.modelKey) || await buildIfcElementIndex(model, element.modelKey);
-              dashboardIndexes.set(element.modelKey, index);
-              indexed = index.elements.find(item => item.identity.globalId === element.ifcGlobalId) || element;
-            }
-          } catch (error) { console.warn('Dashboard IFC metadata unavailable', error); }
-          if (infoGeneration !== elementInfoGeneration) return;
-          const metadata = document.createElement('p');
-          metadata.textContent = `IFC: ${indexed.name || 'Not available'} · ${indexed.ifcType || 'Not available'} · ObjectType: ${indexed.objectType || 'Not available'} · Tag: ${indexed.tag || 'Not available'} · Room: ${indexed.room?.name || 'Unknown'} (${indexed.roomSource || 'UNKNOWN'}) · Classification: ${indexed.candidate?.classification || 'Not available'}`;
-          panel.appendChild(metadata);
-          try {
-            const mapping = await getMappingStatus({ modelKey: element.modelKey, globalId: element.ifcGlobalId });
-            const asset = await getAssetById(mapping.itemit_item_id);
-            if (infoGeneration !== elementInfoGeneration) return;
-            const mapped = document.createElement('p');
-            mapped.textContent = `Mapped itemit asset: ${asset.name || 'Unnamed'} · ${asset.id} · Serial: ${asset.serial || 'Not available'} · Location: ${asset.current_location || 'Not available'} · ${mapping.mapping_status}`;
-            panel.appendChild(mapped);
-          } catch (error) {
-            if (infoGeneration !== elementInfoGeneration) return;
-            const mapped = document.createElement('p');
-            mapped.textContent = error.status === 404 ? 'Not Mapped' : 'Mapping status unavailable';
-            panel.appendChild(mapped);
-          }
-        })();
       }
     });
     picker = setupModelPicker({
@@ -349,6 +315,14 @@ async function start() {
         if (activeKey !== modelKey) await switchModel(modelKey);
         const model = cache.get(modelKey);
         await picker?.select(model, element.sourceLocalId);
+      },
+      focusIfcInViewer: async element => {
+        const modelKey = element.identity?.modelKey || element.modelKey;
+        if (!modelKey || element.sourceLocalId == null) return;
+        if (activeKey !== modelKey) await switchModel(modelKey);
+        const model = cache.get(modelKey);
+        await picker?.select(model, element.sourceLocalId);
+        await picker?.focus(model, element.sourceLocalId);
       },
       modelCatalog: models
     });

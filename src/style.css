@@ -1,5 +1,5 @@
 :root {
-  --app-header-height: 0px;
+  --app-header-height: 70px;
   font-family: Inter, Segoe UI, Arial, sans-serif;
   color: #e9f0f9;
   background: #091321;
@@ -551,9 +551,6 @@ button:disabled {
 .page-nav { display: flex; gap: 6px; margin-left: auto; }
 .page-nav .workspace-nav-btn { margin: 0; }
 .page-nav .workspace-nav-btn.active { background: #2d72b5; color: #fff; }
-.workspace { grid-template-columns: minmax(0, 1fr) 305px; }
-.sidebar { position: fixed; z-index: 30; top: 70px; bottom: 0; left: 0; width: 250px; transform: translateX(-102%); transition: transform .2s ease; box-shadow: 8px 0 28px #0008; }
-#app.drawer-open .sidebar { transform: translateX(0); }
 .mapping-workspace { position: static; inset: auto; z-index: auto; overflow: visible; background: transparent; padding: 0; }
 .workspace-message, .workspace-count { color: #91a9c1; font-size: 11px; line-height: 1.5; }
 .workspace-message.success { color: #70dccb; }.workspace-message.error { color: #ff9ca7; }
@@ -1445,8 +1442,6 @@ body.mapping-resizing * {
   overflow-y: auto;
   margin: 0 0 var(--map-space-3);
 }
-
-
 @media (max-width: 1050px) {
   .mapping-workspace:not(.hidden) { height: auto; min-height: calc(100dvh - var(--app-header-height)); overflow: auto; }
   .mapping-workspace:not(.hidden) .workspace-grid { height: auto; overflow: visible; }
@@ -1697,6 +1692,10 @@ body.mapping-resizing * {
   margin: 0;
 }
 .mapping-workspace:not(.hidden) .workspace-ifc-filters .asset-search { margin: 0; }
+.mapping-workspace:not(.hidden) .workspace-ifc-search-controls { margin: 0 0 10px; }
+.mapping-workspace:not(.hidden) .workspace-ifc-filter-section .workspace-filters label:last-child {
+  grid-column: auto;
+}
 .mapping-workspace:not(.hidden) .workspace-ifc-pane > .workspace-count {
   margin: 0 0 6px;
   color: #8fb0cf;
@@ -1758,3 +1757,1084 @@ body.mapping-resizing * {
   .mapping-workspace:not(.hidden) .workspace-ifc-pane > .workspace-count { font-size: 10px; }
 }
 
+/* Dashboard element data must remain readable independently of the viewport. */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.right-panel .tabbar { flex: 0 0 auto; }
+
+.right-panel .panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.element-details {
+  min-width: 0;
+}
+
+.element-details pre {
+  max-height: min(55vh, 560px);
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Keep IFC cards readable when a long tag or type is present. */
+.mapping-workspace:not(.hidden) .ifc-card-content {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+/* IFC browser cards: present the BIM record before its mapping state. */
+.mapping-workspace:not(.hidden) .workspace-ifc-item {
+  position: relative;
+  min-height: 74px;
+  margin: 8px 0;
+  padding: 11px 12px 11px 14px;
+  border: 1px solid #244763;
+  border-left: 3px solid #2d78ad;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #122b45 0%, #10253d 100%);
+  box-shadow: 0 1px 0 rgb(116 181 223 / 7%);
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item:hover:not(:disabled) {
+  border-color: #4e91bd;
+  background: linear-gradient(135deg, #163550 0%, #112b46 100%);
+  transform: translateY(-1px);
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item:focus-visible {
+  outline: 2px solid #65b8ff;
+  outline-offset: 2px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item.selected {
+  border-color: #55b2fa;
+  border-left-color: #69c3ff;
+  background: linear-gradient(135deg, #164b75 0%, #123859 100%);
+  box-shadow: inset 3px 0 0 #69c3ff, 0 0 0 1px rgb(98 188 255 / 18%);
+}
+
+.mapping-workspace:not(.hidden) .ifc-card-content {
+  gap: 6px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-title {
+  color: #f3f8fc;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: .01em;
+}
+
+.mapping-workspace:not(.hidden) .ifc-card-metadata {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: #a9c6dc;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.mapping-workspace:not(.hidden) .ifc-card-type {
+  min-width: 0;
+  overflow: hidden;
+  color: #7fbbdf;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .055em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mapping-workspace:not(.hidden) .ifc-card-tag {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: 7px;
+  border-left: 1px solid #355875;
+  color: #c4d8e9;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-status {
+  align-self: start;
+  max-width: 86px;
+  margin-top: 1px;
+  padding: 4px 6px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .015em;
+}
+
+/* Keep the mapping workspace focused on the records; messages appear only when needed. */
+.mapping-workspace:not(.hidden) {
+  padding: 8px 10px 10px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-message:empty {
+  display: none;
+}
+
+.mapping-workspace:not(.hidden) .workspace-message:not(:empty) {
+  margin: 0 42px 8px 0;
+}
+
+.mapping-workspace:not(.hidden) .workspace-return {
+  top: 8px;
+  right: 10px;
+  display: inline-grid;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  place-items: center;
+  border-color: #315a7d;
+  border-radius: 8px;
+  color: #d9edff;
+  background: #102b45;
+}
+
+.mapping-workspace:not(.hidden) .workspace-return:hover {
+  border-color: #5aabdf;
+  color: #fff;
+  background: #174369;
+}
+
+.mapping-workspace:not(.hidden) .workspace-return svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+/* The legacy application header is no longer rendered, so Mapping owns the viewport. */
+.mapping-workspace:not(.hidden) {
+  inset: 0;
+  height: 100dvh;
+}
+
+/* Batch work needs room for its selected records before asset search begins. */
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-batch-queue {
+  min-height: 120px;
+  max-height: min(36vh, 280px);
+  margin-bottom: 10px;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-batch-queue > div {
+  margin: 6px 0;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-batch-item {
+  min-height: 36px;
+  line-height: 1.35;
+}
+
+@media (min-width: 1051px) and (max-height: 850px) {
+  .mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-batch-queue {
+    min-height: 108px;
+    max-height: min(34vh, 230px);
+  }
+}
+
+@media (max-width: 1050px) {
+  .mapping-workspace:not(.hidden) { min-height: 100dvh; }
+}
+
+@media (max-width: 360px) {
+  .mapping-workspace:not(.hidden) .workspace-ifc-item {
+    min-height: 68px;
+    padding: 10px;
+  }
+
+  .mapping-workspace:not(.hidden) .ifc-card-metadata { gap: 5px; }
+  .mapping-workspace:not(.hidden) .ifc-card-tag { padding-left: 5px; }
+}
+
+/* Batch selection is an explicit, bounded operation on the filtered IFC results. */
+.mapping-workspace:not(.hidden) .workspace-batch-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls .workspace-mode-label {
+  grid-column: auto;
+  margin-right: auto;
+  color: #8fb0cf;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: 10px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 9px;
+  padding: 8px;
+  background: #102a45;
+  border: 1px solid #285579;
+  border-radius: 9px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar[hidden] { display: none; }
+
+.mapping-workspace:not(.hidden) .workspace-select-visible {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #dcecf9;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.mapping-workspace:not(.hidden) .workspace-select-visible-checkbox,
+.mapping-workspace:not(.hidden) .workspace-ifc-item .ifc-batch-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 16px;
+  border: 1px solid #6d97b8;
+  border-radius: 4px;
+  background: #0a1d31;
+}
+
+.mapping-workspace:not(.hidden) .workspace-select-visible-checkbox:checked,
+.mapping-workspace:not(.hidden) .workspace-ifc-item .ifc-batch-checkbox:checked {
+  border-color: #78c8ff;
+  background-color: #208ee9;
+  background-image: linear-gradient(45deg, transparent 46%, #fff 47% 56%, transparent 57%), linear-gradient(-45deg, transparent 46%, #fff 47% 56%, transparent 57%);
+  background-size: 10px 10px;
+  background-position: 2px 2px;
+  background-repeat: no-repeat;
+}
+
+.mapping-workspace:not(.hidden) .workspace-select-visible-checkbox:indeterminate {
+  border-color: #78c8ff;
+  background: #208ee9 linear-gradient(#fff, #fff) center / 8px 2px no-repeat;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-selection-count {
+  min-width: 0;
+  overflow: hidden;
+  color: #94bedc;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar button {
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-submit:not(:disabled) {
+  color: #fff;
+  background: #197fd1;
+  border-color: #4baef2;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar button:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-ifc-item {
+  grid-template-columns: 16px 16px minmax(0, 1fr) auto;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .ifc-type-icon {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #4e9dce;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #2b8fc8 0 48%, #1b5e8a 49% 100%);
+  box-shadow: inset 0 0 0 2px #123653;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-ifc-item.batch-selected {
+  border-color: #56b6fb;
+  border-left-color: #75ccff;
+  background: linear-gradient(135deg, #164d77 0%, #123b5d 100%);
+  box-shadow: inset 3px 0 0 #75ccff, 0 0 0 1px rgb(102 192 255 / 16%);
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .mapping-status-unmapped {
+  color: #ffd484;
+  background: #493614;
+  border-color: #866528;
+}
+
+@media (max-width: 420px) {
+  .mapping-workspace:not(.hidden) .workspace-batch-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .mapping-workspace:not(.hidden) .workspace-batch-submit {
+    grid-column: 1 / -1;
+  }
+
+}
+
+/* Final mapping-workspace hierarchy: records first, actions second. */
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  padding: 10px;
+  background: linear-gradient(135deg, #102c48, #102640);
+  border-color: #2c6289;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar-header,
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar-header strong {
+  color: #e7f4ff;
+  font-size: 11px;
+  letter-spacing: .02em;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-selection-count {
+  color: #8fc7ed;
+  font-size: 9px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar-actions {
+  padding-top: 7px;
+  border-top: 1px solid #244c6b;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar .workspace-batch-submit {
+  width: 100%;
+  min-height: 32px;
+  font-weight: 700;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-ifc-item.batch-selected:not(.selected) {
+  border-color: #397faa;
+  border-left-color: #5dbaf5;
+  background: linear-gradient(135deg, #153c5d, #112f4d);
+  box-shadow: inset 3px 0 0 #5dbaf5;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item.selected {
+  outline: 1px solid #9cdcff;
+  outline-offset: -3px;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-ifc-item.selected.batch-selected {
+  border-color: #83d2ff;
+  background: linear-gradient(135deg, #18557f, #143c5f);
+  box-shadow: inset 3px 0 0 #83d2ff, 0 0 0 1px rgb(119 207 255 / 24%);
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-details-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-batch-queue {
+  flex: 0 1 min(36vh, 280px);
+  min-height: 116px;
+  max-height: min(36vh, 280px);
+  padding: 11px;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-details-pane > .workspace-assets-pane {
+  flex: 1 1 190px;
+  min-height: 150px;
+  padding-top: 10px;
+}
+
+.mapping-workspace:not(.hidden)[data-mapping-mode="batch"] .workspace-actions {
+  flex: 0 0 auto;
+  margin-top: 8px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-queue h3 {
+  color: #e7f4ff;
+  font-size: 12px;
+  letter-spacing: .015em;
+}
+
+.mapping-workspace:not(.hidden) .workspace-queue-progress {
+  color: #8bb8d8;
+  font-variant-numeric: tabular-nums;
+}
+
+.mapping-workspace:not(.hidden) .workspace-queue-line {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 7px 8px;
+  border: 1px solid #274965;
+  border-radius: 6px;
+  background: #122c46;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-item:hover {
+  border-color: #4b91bf;
+  background: #163a59;
+}
+
+.mapping-workspace:not(.hidden) .workspace-queue-order {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  color: #a7d8fa;
+  font-size: 9px;
+  font-weight: 700;
+  background: #17496e;
+  border-radius: 50%;
+}
+
+.mapping-workspace:not(.hidden) .workspace-queue-record {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  text-align: left;
+}
+
+.mapping-workspace:not(.hidden) .workspace-queue-name,
+.mapping-workspace:not(.hidden) .workspace-queue-meta,
+.mapping-workspace:not(.hidden) .workspace-queue-asset {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-workspace:not(.hidden) .workspace-queue-name { color: #ecf7ff; font-size: 10px; font-weight: 700; }
+.mapping-workspace:not(.hidden) .workspace-queue-meta { color: #91b9d6; font-size: 9px; }
+.mapping-workspace:not(.hidden) .workspace-queue-asset { color: #79d7c4; font-size: 9px; }
+
+.mapping-workspace:not(.hidden) .workspace-queue-status {
+  max-width: 82px;
+  overflow: hidden;
+  padding: 3px 5px;
+  color: #add9f7;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #173a57;
+  border: 1px solid #2d6388;
+  border-radius: 999px;
+}
+
+.mapping-workspace:not(.hidden) .queue-state-assigned .workspace-queue-status { color: #8ce6b8; background: #123d31; border-color: #24785a; }
+.mapping-workspace:not(.hidden) .queue-state-already-mapped .workspace-queue-status { color: #d2b6ff; background: #35224e; border-color: #65468e; }
+.mapping-workspace:not(.hidden) .queue-state-active-pending .workspace-queue-status,
+.mapping-workspace:not(.hidden) .queue-state-pending .workspace-queue-status { color: #ffd484; background: #493614; border-color: #866528; }
+
+.mapping-workspace:not(.hidden) .workspace-queue-remove {
+  align-self: center;
+  min-height: 28px;
+  padding: 4px 7px;
+  color: #a9cce5;
+  background: transparent;
+  border: 1px solid #315876;
+  border-radius: 6px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-queue-remove:hover { color: #fff; border-color: #6aaedf; background: #174260; }
+
+.mapping-workspace:not(.hidden) .workspace-assign-button,
+.mapping-workspace:not(.hidden) .workspace-actions > button:not(.secondary) {
+  color: #fff;
+  background: #197fd1;
+  border-color: #4baef2;
+}
+
+.mapping-workspace:not(.hidden) .workspace-assign-button:disabled,
+.mapping-workspace:not(.hidden) .workspace-actions > button:disabled {
+  color: #7894ab;
+  background: #10263a;
+  border-color: #28445d;
+  opacity: 1;
+}
+
+@media (max-width: 420px) {
+  .mapping-workspace:not(.hidden) .workspace-batch-toolbar-header { align-items: flex-start; flex-direction: column; }
+  .mapping-workspace:not(.hidden) .workspace-batch-selection-count { text-align: left; }
+  .mapping-workspace:not(.hidden) .workspace-queue-status { max-width: 68px; }
+}
+
+/* Give manual itemit results priority over surrounding controls. */
+.mapping-workspace:not(.hidden) .workspace-details-pane {
+  padding: 16px;
+}
+
+.mapping-workspace:not(.hidden):not([data-mapping-mode="batch"]) .workspace-review {
+  padding: 4px 0 8px;
+  margin: 0;
+}
+
+.mapping-workspace:not(.hidden):not([data-mapping-mode="batch"]) .workspace-review h3 {
+  margin: 0 0 3px;
+  font-size: 16px;
+}
+
+.mapping-workspace:not(.hidden):not([data-mapping-mode="batch"]) .workspace-panel-subtitle {
+  margin: 0 0 7px;
+  font-size: 10px;
+}
+
+.mapping-workspace:not(.hidden):not([data-mapping-mode="batch"]) .workspace-review-records {
+  gap: 5px;
+}
+
+.mapping-workspace:not(.hidden):not([data-mapping-mode="batch"]) .workspace-review-records .workspace-card {
+  padding: 7px 9px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-details-pane > .workspace-assets-pane {
+  padding-top: 8px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-assets-pane h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-search-controls {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-search-controls .asset-search,
+.mapping-workspace:not(.hidden) .workspace-filter-toggle {
+  min-height: 34px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-filter-toggle {
+  min-width: 72px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-active-filters {
+  margin-bottom: 5px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-assets-pane > .workspace-count {
+  margin: 0 0 5px;
+  font-size: 10px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-assets-pane > .workspace-scroll {
+  flex: 1 1 210px;
+  min-height: 180px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-item {
+  gap: 4px;
+  padding: 8px 10px;
+  margin: 5px 0;
+  border-radius: 7px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-item .list-row-title { font-size: 11px; }
+
+.mapping-workspace:not(.hidden) .workspace-assign-button {
+  min-height: 32px;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-pagination {
+  min-height: 28px;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-pagination button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-actions {
+  display: flex;
+  gap: 7px;
+  margin: 6px 0 0;
+  padding: 6px 0 0;
+}
+
+.mapping-workspace:not(.hidden) .workspace-actions button {
+  min-height: 32px;
+  padding: 6px 9px;
+  font-size: 10px;
+}
+
+@media (min-width: 1051px) and (max-height: 850px) {
+  .mapping-workspace:not(.hidden) .workspace-details-pane { padding: 12px; }
+  .mapping-workspace:not(.hidden) .workspace-assets-pane > .workspace-scroll { min-height: 150px; }
+}
+
+/* The native selects remain the form-state source behind the custom listboxes. */
+.mapping-workspace:not(.hidden) .workspace-native-select {
+  display: none !important;
+}
+
+.mapping-workspace:not(.hidden) .workspace-combobox-trigger,
+.mapping-workspace:not(.hidden) .workspace-ifc-pane .asset-search,
+.mapping-workspace:not(.hidden) .workspace-assets-pane .asset-search {
+  min-height: 36px;
+  margin-bottom: 6px;
+  padding: 0 11px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.mapping-workspace:not(.hidden) .workspace-combobox-chevron {
+  margin-left: 8px;
+  font-size: 15px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-pane h3,
+.mapping-workspace:not(.hidden) .workspace-assets-pane h3 {
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.mapping-workspace:not(.hidden) .workspace-field-label,
+.mapping-workspace:not(.hidden) .workspace-filters label {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-title {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.mapping-workspace:not(.hidden) .ifc-card-type,
+.mapping-workspace:not(.hidden) .ifc-card-tag,
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-status {
+  font-size: 9px;
+}
+
+.workspace-combobox-menu {
+  color: #dbe9f8 !important;
+  background: #10253c !important;
+  border-color: #35628c !important;
+}
+
+.workspace-combobox-menu .workspace-combobox-option {
+  min-height: 32px;
+  padding: 7px 9px;
+  color: #dbe9f8 !important;
+  font-size: 12px;
+  line-height: 1.25;
+  background: transparent !important;
+}
+
+.workspace-combobox-menu .workspace-combobox-option:hover,
+.workspace-combobox-menu .workspace-combobox-option:focus-visible,
+.workspace-combobox-menu .workspace-combobox-option[aria-selected="true"] {
+  color: #fff !important;
+  background: #1a4267 !important;
+}
+
+.workspace-combobox-menu .workspace-combobox-filter {
+  width: 100%;
+  min-height: 32px;
+  margin-bottom: 4px;
+  padding: 0 8px;
+  color: #e5f2fc;
+  font-size: 12px;
+  background: #0c1f32;
+  border: 1px solid #315a7c;
+  border-radius: 5px;
+}
+
+/* Status colours must win over the shared badge shape. */
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-status.mapping-status-unmapped {
+  color: #ffd484;
+  background: #493614;
+  border-color: #866528;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-status.mapping-status-provisional {
+  color: #91d6ff;
+  background: #123b5c;
+  border-color: #2876a8;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-status.mapping-status-confirmed {
+  color: #8ce6b8;
+  background: #123d31;
+  border-color: #24785a;
+}
+
+.mapping-workspace:not(.hidden) .workspace-ifc-item .list-row-status.mapping-status-unavailable {
+  color: #d2b6ff;
+  background: #35224e;
+  border-color: #65468e;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-item .list-row-status.mapping-status-unmapped {
+  color: #ffd484;
+  background: #493614;
+  border-color: #866528;
+}
+
+/* Asset results are the primary mapping decision: retain each record's name,
+   details, and status as distinct, readable rows at constrained viewport heights. */
+.mapping-workspace:not(.hidden) .workspace-assets-pane > .workspace-scroll {
+  min-height: 210px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  min-height: 76px;
+  gap: 5px;
+  padding: 10px 12px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-item .list-row-title {
+  display: block !important;
+  min-height: 14px;
+  color: #f3f8fc;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-item .asset-card-metadata {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 4px 10px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-item .list-row-status {
+  grid-column: auto;
+  margin: 0;
+}
+
+/* The active-filter chip is sufficient context; a separate result count adds noise. */
+.mapping-workspace:not(.hidden) .workspace-assets-pane > .workspace-count {
+  display: none;
+}
+
+/* Keep asset filtering available without spending result-list height on labels
+   or duplicate applied-filter chips. The Filters badge remains the indicator. */
+.mapping-workspace:not(.hidden) .workspace-assets-pane > h3,
+.mapping-workspace:not(.hidden) .workspace-assets-pane > .workspace-active-filters {
+  display: none;
+}
+
+.mapping-workspace:not(.hidden) .workspace-assets-pane > .workspace-search-controls {
+  margin-top: 0;
+}
+
+/* Batch selection remains available, but does not need a separate panel. */
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar {
+  display: flex;
+  align-items: center;
+  min-height: 0;
+  margin: 0 0 8px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar-header {
+  display: none;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-toolbar-actions {
+  width: 100%;
+  padding: 0;
+  border: 0;
+}
+
+/* Asset selection and paging form one quiet footer, separate from saved mapping actions. */
+.mapping-workspace:not(.hidden) .workspace-asset-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #203a55;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-footer .workspace-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 0;
+  margin: 0;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-footer .workspace-pagination button {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-footer .workspace-pagination span {
+  min-width: 62px;
+  color: #9bb8cf;
+  font-size: 10px;
+  text-align: center;
+}
+
+.mapping-workspace:not(.hidden) .workspace-asset-footer .workspace-assign-button {
+  align-self: auto;
+  min-width: 112px;
+  min-height: 32px;
+  margin: 0;
+}
+
+/* Feedback belongs beside the mapping actions, not above the whole workspace. */
+.mapping-workspace:not(.hidden) .workspace-details-pane > .workspace-message:not(:empty) {
+  flex: 0 0 auto;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  color: #d3e6f5;
+  font-size: 11px;
+  line-height: 1.35;
+  background: #102a42;
+  border: 1px solid #315875;
+  border-radius: 6px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-details-pane > .workspace-message.error {
+  color: #ffd1d7;
+  background: #351f2a;
+  border-color: #7b4050;
+}
+
+.mapping-workspace:not(.hidden) .workspace-details-pane > .workspace-message.success {
+  color: #b4eadc;
+  background: #10352f;
+  border-color: #277062;
+}
+
+/* Flat control language: form fields are quiet; actions are the only solid fills. */
+.mapping-workspace:not(.hidden) .workspace-combobox-trigger {
+  min-height: 36px;
+  padding: 0 11px;
+  color: #e6f0fb;
+  font-weight: 500;
+  background: #0f2438;
+  border: 1px solid #315875;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.mapping-workspace:not(.hidden) .workspace-combobox-trigger:hover,
+.mapping-workspace:not(.hidden) .workspace-combobox-trigger[aria-expanded="true"] {
+  border-color: #5aa6d7;
+  background: #112b42;
+}
+
+.mapping-workspace:not(.hidden) .workspace-combobox-chevron {
+  color: #9bc9e7;
+  font-size: 12px;
+}
+
+.mapping-workspace:not(.hidden) button {
+  box-shadow: none;
+  background-image: none;
+}
+
+.mapping-workspace:not(.hidden) button.secondary,
+.mapping-workspace:not(.hidden) .workspace-filter-toggle,
+.mapping-workspace:not(.hidden) .workspace-pagination button,
+.mapping-workspace:not(.hidden) .workspace-queue-remove {
+  color: #c3dced;
+  background: transparent;
+  border-color: #315875;
+  border-radius: 6px;
+}
+
+.mapping-workspace:not(.hidden) button.secondary:hover:not(:disabled),
+.mapping-workspace:not(.hidden) .workspace-filter-toggle:hover:not(:disabled),
+.mapping-workspace:not(.hidden) .workspace-pagination button:hover:not(:disabled),
+.mapping-workspace:not(.hidden) .workspace-queue-remove:hover:not(:disabled) {
+  color: #fff;
+  background: #163651;
+  border-color: #63b1e2;
+}
+
+.mapping-workspace:not(.hidden) .workspace-assign-button,
+.mapping-workspace:not(.hidden) .workspace-batch-submit:not(:disabled),
+.mapping-workspace:not(.hidden) .workspace-actions > button:not(.secondary) {
+  color: #fff;
+  background: #197fca;
+  border-color: #197fca;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.mapping-workspace:not(.hidden) .workspace-assign-button:hover:not(:disabled),
+.mapping-workspace:not(.hidden) .workspace-batch-submit:hover:not(:disabled),
+.mapping-workspace:not(.hidden) .workspace-actions > button:not(.secondary):hover:not(:disabled) {
+  background: #2693e5;
+  border-color: #2693e5;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls button:not(.active) {
+  color: #bfd7e8;
+  background: transparent;
+  border-color: #315875;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls button.active {
+  color: #fff;
+  background: #197fca;
+  border-color: #197fca;
+  box-shadow: none;
+}
+
+/* Compact, flat action system for the mapping workflow. */
+.mapping-workspace:not(.hidden) button {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  border-radius: 5px;
+  box-shadow: none !important;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls {
+  gap: 2px;
+  padding: 2px;
+  background: #0c2134;
+  border: 1px solid #284b66;
+  border-radius: 7px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls .workspace-mode-label {
+  margin-left: 5px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls button {
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 4px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls button:not(.active) {
+  color: #9fc0d7;
+  background: transparent;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls button.active {
+  color: #fff;
+  background: #217fc4;
+  border: 0;
+}
+
+.mapping-workspace:not(.hidden) button.secondary,
+.mapping-workspace:not(.hidden) .workspace-filter-toggle,
+.mapping-workspace:not(.hidden) .workspace-pagination button,
+.mapping-workspace:not(.hidden) .workspace-queue-remove {
+  color: #afcce0;
+  background: #10283d;
+  border: 1px solid #31556f;
+}
+
+.mapping-workspace:not(.hidden) .workspace-assign-button,
+.mapping-workspace:not(.hidden) .workspace-batch-submit:not(:disabled),
+.mapping-workspace:not(.hidden) .workspace-actions > button:not(.secondary) {
+  color: #fff;
+  background: #217fc4;
+  border: 1px solid #217fc4;
+}
+
+.mapping-workspace:not(.hidden) button:disabled {
+  color: #718ba0 !important;
+  background: #102337 !important;
+  border-color: #24435c !important;
+  opacity: 1;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  gap: 6px;
+}
+
+.mapping-workspace:not(.hidden) .workspace-batch-controls button:not(.active) {
+  color: #afcce0;
+  background: #10283d;
+  border: 1px solid #31556f;
+}

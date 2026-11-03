@@ -28,13 +28,13 @@
         <div class="viewer-shell">
           <div id="viewer"></div>
           <div class="camera-view-controls" aria-label="Camera views">
-            <button class="camera-view-btn" data-view="top" type="button">Top</button>
-            <button class="camera-view-btn" data-view="bottom" type="button">Bottom</button>
-            <button class="camera-view-btn" data-view="left" type="button">Left</button>
-            <button class="camera-view-btn" data-view="right" type="button">Right</button>
-            <button class="camera-view-btn" data-view="front" type="button">Front</button>
-            <button class="camera-view-btn" data-view="back" type="button">Back</button>
-            <button class="camera-view-btn active" data-view="iso" type="button">3D</button>
+            <button class="camera-view-btn" data-view="top" type="button" title="Top view">Top</button>
+            <button class="camera-view-btn" data-view="bottom" type="button" title="Bottom view">Bottom</button>
+            <button class="camera-view-btn" data-view="left" type="button" title="Left view">Left</button>
+            <button class="camera-view-btn" data-view="right" type="button" title="Right view">Right</button>
+            <button class="camera-view-btn" data-view="front" type="button" title="Front view">Front</button>
+            <button class="camera-view-btn" data-view="back" type="button" title="Back view">Back</button>
+            <button class="camera-view-btn active" data-view="iso" type="button" title="3D isometric view">3D</button>
           </div>
           <div class="viewer-hint">Left drag: orbit &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Right drag: pan</div>
           <div id="viewer-overlay" class="viewer-overlay">Initializing 3D engine…</div>
@@ -70,8 +70,10 @@
     </div>
   </div>
   <section id="mapping-workspace" class="mapping-workspace hidden" aria-label="IFC to itemit Mapping Workspace">
-    <button id="mapping-back" class="workspace-return secondary" type="button">Dashboard</button>
-    <p id="workspace-message" class="workspace-message">Select an IFC element from the viewer or list. No mapping is confirmed automatically.</p>
+    <button id="mapping-back" class="workspace-return secondary" type="button" aria-label="Back to dashboard" title="Back to dashboard">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
+    </button>
+    <p id="workspace-message" class="workspace-message"></p>
     <div class="workspace-grid">
       <div id="workspace-viewer-slot" class="workspace-viewer-slot"></div>
       <aside class="workspace-controls-pane">
@@ -79,11 +81,18 @@
           <h3>IFC elements</h3>
           <label class="workspace-field-label" for="workspace-model">Model</label>
           <select id="workspace-model" class="asset-search"></select>
-          <div class="workspace-ifc-filters" aria-label="IFC filters">
-            <label class="workspace-field-label" for="workspace-ifc-scope">Asset classification<select id="workspace-ifc-scope" class="asset-search"><option value="likely">Likely Assets</option><option value="review">Include Needs Review</option><option value="all">All IFC Elements</option></select></label>
-            <label class="workspace-field-label" for="workspace-ifc-status">Mapping status<select id="workspace-ifc-status" class="asset-search"><option value="">All mapping statuses</option><option value="UNMAPPED">Not mapped</option><option value="PROVISIONAL">Provisional</option><option value="CONFIRMED">Confirmed</option><option value="UNAVAILABLE">Status unavailable</option></select></label>
+          <div class="workspace-search-controls workspace-ifc-search-controls">
+            <input id="workspace-ifc-search" class="asset-search" type="search" placeholder="Search IFC name, type, or Tag" />
+            <button id="workspace-ifc-filter-toggle" class="secondary workspace-filter-toggle" type="button" aria-expanded="false" aria-controls="workspace-ifc-filter-popover">Filters <span id="workspace-ifc-filter-count" class="workspace-filter-count" hidden></span></button>
           </div>
-          <input id="workspace-ifc-search" class="asset-search" type="search" placeholder="Search IFC name, type, or Tag" />
+          <section id="workspace-ifc-filter-popover" class="workspace-filter-section workspace-ifc-filter-section" aria-label="IFC filters" hidden>
+            <div class="workspace-filter-popover-head"><strong>Filter IFC elements</strong><button id="workspace-ifc-reset-filters" class="workspace-clear-filters" type="button" hidden>Clear all</button></div>
+            <div class="workspace-filters">
+              <label>Asset classification<select id="workspace-ifc-scope" class="asset-search"><option value="likely">Likely Assets</option><option value="review">Include Needs Review</option><option value="all">All IFC Elements</option></select></label>
+              <label>Mapping status<select id="workspace-ifc-status" class="asset-search"><option value="">All mapping statuses</option><option value="UNMAPPED">Not mapped</option><option value="PROVISIONAL">Provisional</option><option value="CONFIRMED">Confirmed</option><option value="UNAVAILABLE">Status unavailable</option></select></label>
+            </div>
+            <button id="workspace-ifc-filter-apply" class="secondary workspace-filter-apply" type="button">Show results</button>
+          </section>
           <p id="workspace-ifc-result-count" class="workspace-count" aria-live="polite"></p>
           <div id="workspace-ifc-list" class="workspace-scroll"></div>
         </section>
@@ -96,7 +105,7 @@
             <div id="workspace-active-filters" class="workspace-active-filters" aria-label="Active filters"></div>
             <p id="workspace-result-count" class="workspace-count">Select an IFC element to load inventory candidates.</p>
             <div id="workspace-asset-list" class="workspace-scroll"></div>
-            <div class="workspace-pagination"><button id="workspace-previous" class="secondary">Previous</button><span id="workspace-page">Page 1 of 1</span><button id="workspace-next" class="secondary">Next</button></div>
+            <div class="workspace-pagination"><button id="workspace-previous" class="secondary" type="button" aria-label="Previous page" title="Previous page">‹</button><span id="workspace-page">Page 1 of 1</span><button id="workspace-next" class="secondary" type="button" aria-label="Next page" title="Next page">›</button></div>
           </section>
           <div class="workspace-actions"><button id="workspace-save" disabled>Create mapping</button><button id="workspace-remove" class="secondary" disabled>Unlink mapping</button></div>
         </section>
