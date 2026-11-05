@@ -77,6 +77,19 @@ export async function getAssets({ search, limit = 100, offset = 0, activeOnly = 
   return filterAssets(assets, search).slice(Math.max(Number(offset) || 0, 0));
 }
 
+export async function getCollections() {
+  const response = await requestJson('/collections');
+  const collections = Array.isArray(response)
+    ? response
+    : response?.items || response?.data || response?.results;
+
+  if (!Array.isArray(collections)) {
+    throw new FobeApiError('FOBE-API returned an invalid collection list.');
+  }
+
+  return collections;
+}
+
 export async function getAssetById(itemId) {
   if (!itemId) throw new FobeApiError('An item UUID is required.');
 
@@ -113,18 +126,4 @@ export async function getMappings({ modelKey, itemitItemId } = {}) {
 
 export async function createMapping(mapping) {
   return requestJson('/mappings', { method: 'POST', body: mapping });
-}
-
-export async function updateMapping({ modelKey, globalId, changes }) {
-  if (!modelKey || !globalId) throw new FobeApiError('A model key and IFC GlobalId are required.');
-  return requestJson(`/mappings/${encodeURIComponent(modelKey)}/${encodeURIComponent(globalId)}`, {
-    method: 'PUT', body: changes
-  });
-}
-
-export async function deleteMapping({ modelKey, globalId }) {
-  if (!modelKey || !globalId) throw new FobeApiError('A model key and IFC GlobalId are required.');
-  await requestJson(`/mappings/${encodeURIComponent(modelKey)}/${encodeURIComponent(globalId)}`, {
-    method: 'DELETE'
-  });
 }

@@ -146,7 +146,7 @@ IFC-Viewer/
 1. Select an IFC element with an available GlobalId and remain in **Element Info**.
 2. BIM Studio retrieves its persisted mapping using the stable `modelKey + GlobalId` pair.
 3. For an unmapped element, choose **Load inventory**, search by item name or serial number, and inspect a record before selecting it.
-4. Select **Create provisional mapping**. Existing mappings can be corrected through **Correct / remap** or deleted through **Remove mapping**.
+4. Select **Confirm mapping**. The write creates a confirmed mapping directly.
 
 The UI never selects an asset automatically. Mapping writes are for the trusted local-development FOBE-API only; the current API has no authentication and must not be exposed on an untrusted network. Asset Collection membership is displayed only when a future FOBE-API response supplies it; the current API exposes the asset name, serial number, UUID, and location.
 
@@ -162,7 +162,11 @@ Asset filters are applied before pagination: asset name, complete serial, normal
 
 The workspace defaults to **Asset-oriented elements**, hiding common building geometry such as walls, slabs, columns, openings, doors, windows, and structural members from the IFC list. Furnishings and generic `IfcBuildingElementProxy` objects remain visible because they may represent real assets. Choose **All geometry, including building elements** for review when needed.
 
-Mapping creation, remapping, and deletion stay disabled until the workspace can retrieve the mapping list from FOBE-API. This prevents a missing/old `/mappings` route from being mistaken for an unmapped IFC element.
+Mapping creation stays disabled until the workspace can retrieve the mapping list from FOBE-API. This prevents a missing/old `/mappings` route from being mistaken for an unmapped IFC element.
+
+Confirmed mappings are read-only in the workspace. Their linked itemit record remains visible, but asset selection and the confirm action are disabled. Confirmed IFC elements cannot enter a batch; the batch control reports how many were excluded. Correction or unlink support is intentionally deferred to a future enhancement.
+
+The FOBE-API mapping backend must enforce the same rule: mapping creation must atomically reject an already-confirmed `{ model_key, ifc_global_id }` with HTTP `409 Conflict`, and its update route must not overwrite confirmed mappings. The frontend controls are a usability measure, not the security boundary.
 
 ### Export an IFC element index
 
